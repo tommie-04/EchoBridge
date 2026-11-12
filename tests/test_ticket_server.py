@@ -8,10 +8,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp_servers.ticket_server import TicketError, TicketStore
+from mcp_servers.ticket_server import TicketError, TicketStore, local_timestamp
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVER = ROOT / 'mcp_servers/ticket_server.py'
@@ -31,6 +33,24 @@ class StoreTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.db = Path(self.tmp.name) / 'tickets.db'
         self.store = TicketStore(self.db)
+
+    def test_local_times_respect_dst_and_do_not_change_stored_events(self):
+        zone = ZoneInfo('America/Los_Angeles')
+        self.assertEqual(local_timestamp('2026-11-12T19:43:00+00:00', zone),
+                         '2026-11-12T11:43:00-08:00')
+        self.assertEqual(local_timestamp('2026-07-12T19:43:00+00:00', zone),
+                         '2026-07-12T12:43:00-07:00')
+        self.assertIsNone(local_timestamp('2026-11-12T19:43:00', zone))
+        with patch.dict('os.environ', {'TICKET_TIMEZONE': 'America/Los_Angeles'}):
+            ticket = self.store.create_ticket(**create_arguments())['ticket']
+            self.store.update_ticket(ticket['ticket_id'], comment='正在核实')
+            result = self.store.update_ticket(ticket['ticket_id'], comment='继续跟进')['ticket']
+            self.assertEqual(result['display_timezone'], zone.key)
+            self.assertTrue(result['comments'][0]['timestamp_local'])
+            with self.store.connection() as db:
+                row = db.execute('SELECT created_at,comments FROM tickets').fetchone()
+            self.assertEqual(row['created_at'], ticket['created_at'])
+            self.assertNotIn('timestamp_local', json.loads(row['comments'])[0])
 
     def test_create_retry_and_persistence(self):
         first = self.store.create_ticket(**create_arguments())
