@@ -4,7 +4,7 @@ QQ、微信与 Telegram 接待客户，飞书管理员统一处理售后工单�
 
 基于 Nanobot 的零售售后 Agent 实战项目。客户可以咨询商品与售后规则、确认创建工单、补充信息和查询进度。处理人员在飞书私聊中查看跨渠道待办、更新状态并添加处理备注，客户再次查询时获得最新结果。
 
-当前已完成 QQ、微信、Telegram 客户渠道与飞书管理员的真实会话联调，自动化测试覆盖 15 个测试方法。运行需要自行配置模型和平台凭据、准备知识库并完成机器人授权。
+当前已完成 QQ、微信、Telegram 客户渠道与飞书管理员的真实会话联调，自动化测试覆盖 16 个测试方法。运行需要自行配置模型和平台凭据、准备知识库并完成机器人授权。
 
 ## 使用场景与当前进度
 
@@ -175,7 +175,7 @@ create_ticket 在同一事务中检查 request_id 与内容指纹。相同请求
 
 已实现的控制包括可信渠道身份绑定、客户工单范围隔离、飞书管理员私聊权限校验、SQL 参数化、建单幂等与事务更新。自动化测试同时检查伪造身份、越权管理和并发访问等场景。
 
-当前共有 15 个测试方法，使用临时数据库、模拟渠道身份和真实 MCP stdio 子进程。在安装依赖的 Python 环境中执行测试。
+当前共有 16 个测试方法，使用临时数据库、模拟渠道身份和真实 MCP stdio 子进程。在安装依赖的 Python 环境中执行测试。
 
 ```bash
 python -m unittest discover -s tests -v
@@ -209,6 +209,9 @@ services:
     init: true
     env_file:
       - .env
+    environment:
+      TZ: ${TICKET_TIMEZONE:-America/Los_Angeles}
+      TICKET_TIMEZONE: ${TICKET_TIMEZONE:-America/Los_Angeles}
     ports:
       # Health endpoint only; do not publish WebUI or administration interfaces.
       - "127.0.0.1:18792:18790"
@@ -239,9 +242,9 @@ volumes:
 | `deploy/entrypoint.py` | 首次初始化运行配置，后续启动保留已有配置 |
 | `deploy/healthcheck.py` | 检查 Gateway readiness，供 Docker 显示健康状态 |
 
-容器代码和客服规则位于 `/app/`，workspace 为 `/app/workspace/`，运行配置为 `/runtime/config.json`，工单数据库为 `/runtime/data/tickets.db`，微信登录状态位于 `/runtime/weixin/`。运行配置与聊天历史位于 workspace 外。
+容器代码和客服规则位于 `/app/`，workspace 为 `/app/workspace/`，运行配置为 `/runtime/config.json`，工单数据库为 `/runtime/data/tickets.db`，微信登录状态位于 `/runtime/weixin/`。运行配置与聊天历史位于 workspace 外。工单原始时间以 UTC 保存，工具另外提供按 `TICKET_TIMEZONE` 转换的本地时间字段；回复使用本地字段，自动处理夏令时，历史数据无需重写。
 
-已完成 Linux ARM64 镜像构建、容器内 15 项自动化测试、四个业务渠道连接、8 项 MCP 能力注册、真实模型回复及重启后的数据保留验证。完整业务验收仍按下方客户与管理员操作流程进行。
+已完成 Linux ARM64 镜像构建、容器内 16 项自动化测试、四个业务渠道连接、8 项 MCP 能力注册、真实模型回复及重启后的数据保留验证。完整业务验收仍按下方客户与管理员操作流程进行。
 
 ### 部署步骤
 
@@ -272,6 +275,7 @@ cp -n .env.example .env
 | `QQ_APP_ID` / `QQ_APP_SECRET` | QQ 机器人凭据 |
 | `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 飞书应用凭据 |
 | `TICKET_ADMIN_FEISHU_IDS` | 飞书管理员 Open ID，多个值以英文逗号分隔 |
+| `TICKET_TIMEZONE` | 工单显示时区，默认 `America/Los_Angeles`，也可设置为 `Asia/Shanghai` 等 IANA 时区 |
 
 四个业务渠道默认启用，微信通过下一步扫码获取登录状态。新实例若需要停用某渠道，在首次启动前修改 `deploy/config.docker.json` 中该渠道的 `enabled`。
 
