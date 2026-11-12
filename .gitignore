@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+config.json
+.nanobot/
+.venv/
+__pycache__/
+*.sqlite*
+*.db
