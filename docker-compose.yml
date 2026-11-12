@@ -6,6 +6,9 @@ services:
     init: true
     env_file:
       - .env
+    environment:
+      TZ: ${TICKET_TIMEZONE:-America/Los_Angeles}
+      TICKET_TIMEZONE: ${TICKET_TIMEZONE:-America/Los_Angeles}
     ports:
       # Health endpoint only; do not publish WebUI or administration interfaces.
       - "127.0.0.1:18792:18790"
