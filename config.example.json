@@ -65,7 +65,8 @@
         "cwd": "/ABSOLUTE/PATH/TO/PROJECT",
         "env": {
           "TICKET_DB_PATH": "/ABSOLUTE/PATH/TO/PROJECT/data/tickets.db",
-          "TICKET_ENABLE_ADMIN_TOOLS": "1"
+          "TICKET_ENABLE_ADMIN_TOOLS": "1",
+          "TICKET_TIMEZONE": "${TICKET_TIMEZONE}"
         },
         "enabledTools": [
           "create_ticket",
