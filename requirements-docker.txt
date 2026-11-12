@@ -1,0 +1,8 @@
+-r requirements.txt
+# Optional channel dependencies, pinned to the versions used locally.
+lark-oapi==1.7.5
+python-telegram-bot[socks,webhooks]==22.8
+python-socks[asyncio]==2.8.2
+qq-botpy==1.2.1
+qrcode[pil]==8.2
+pycryptodome==4.4.0

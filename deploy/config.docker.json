@@ -1,0 +1,100 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "/app/workspace",
+      "model": "deepseek-flash",
+      "provider": "deepseek"
+    }
+  },
+  "providers": {
+    "deepseek": {
+      "apiKey": "${CUSTOMER_SUPPORT_API_KEY}",
+      "apiBase": "https://api.deepseek.com"
+    }
+  },
+  "channels": {
+    "sendProgress": false,
+    "sendToolHints": false,
+    "showReasoning": false,
+    "telegram": {
+      "enabled": true,
+      "token": "${TELEGRAM_BOT_TOKEN}",
+      "allowFrom": [],
+      "mode": "polling",
+      "streaming": false
+    },
+    "feishu": {
+      "enabled": true,
+      "appId": "${FEISHU_APP_ID}",
+      "appSecret": "${FEISHU_APP_SECRET}",
+      "allowFrom": [],
+      "groupPolicy": "mention",
+      "streaming": false
+    },
+    "qq": {
+      "enabled": true,
+      "appId": "${QQ_APP_ID}",
+      "secret": "${QQ_APP_SECRET}",
+      "allowFrom": [],
+      "msgFormat": "plain",
+      "ackMessage": "",
+      "sendProgress": false,
+      "sendToolHints": false,
+      "showReasoning": false
+    },
+    "weixin": {
+      "enabled": true,
+      "allowFrom": [],
+      "stateDir": "/runtime/weixin",
+      "streaming": false,
+      "sendProgress": false,
+      "sendToolHints": false,
+      "showReasoning": false,
+      "replyProgressMessages": false
+    },
+    "websocket": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 8765,
+      "streaming": false,
+      "sendProgress": false,
+      "sendToolHints": false,
+      "showReasoning": false
+    }
+  },
+  "tools": {
+    "mcpServers": {
+      "ticket_server": {
+        "type": "stdio",
+        "command": "/usr/local/bin/python",
+        "args": [
+          "/app/mcp_servers/ticket_server.py",
+          "serve"
+        ],
+        "cwd": "/app",
+        "env": {
+          "TICKET_DB_PATH": "/runtime/data/tickets.db",
+          "TICKET_ENABLE_ADMIN_TOOLS": "1"
+        },
+        "enabledTools": [
+          "create_ticket",
+          "get_ticket",
+          "list_user_tickets",
+          "add_ticket_comment",
+          "get_ticket_access_context",
+          "admin_list_tickets",
+          "admin_get_ticket",
+          "admin_update_ticket"
+        ]
+      }
+    }
+  },
+  "gateway": {
+    "host": "0.0.0.0",
+    "port": 18790,
+    "restartMode": "exit",
+    "heartbeat": {
+      "enabled": false
+    }
+  }
+}

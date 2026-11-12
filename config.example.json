@@ -2,7 +2,7 @@
   "agents": {
     "defaults": {
       "workspace": "/ABSOLUTE/PATH/TO/PROJECT/workspace",
-      "model": "deepseek/deepseek-chat",
+      "model": "deepseek-flash",
       "provider": "deepseek"
     }
   },
@@ -30,6 +30,27 @@
       "allowFrom": [],
       "groupPolicy": "mention",
       "streaming": false
+    },
+    "qq": {
+      "enabled": false,
+      "appId": "${QQ_APP_ID}",
+      "secret": "${QQ_APP_SECRET}",
+      "allowFrom": [],
+      "msgFormat": "plain",
+      "ackMessage": "",
+      "sendProgress": false,
+      "sendToolHints": false,
+      "showReasoning": false
+    },
+    "weixin": {
+      "enabled": false,
+      "allowFrom": [],
+      "stateDir": "/ABSOLUTE/PATH/TO/PROJECT/weixin",
+      "streaming": false,
+      "sendProgress": false,
+      "sendToolHints": false,
+      "showReasoning": false,
+      "replyProgressMessages": false
     }
   },
   "tools": {

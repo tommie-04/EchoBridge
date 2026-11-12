@@ -1,0 +1,20 @@
+# Only source files needed by the image may enter the build context.
+**
+!Dockerfile
+!requirements.txt
+!requirements-docker.txt
+!customer_gateway.py
+!mcp_servers/
+!mcp_servers/ticket_server.py
+!mcp_servers/LICENSE.learn-nanobot
+!deploy/
+!deploy/config.docker.json
+!deploy/entrypoint.py
+!deploy/healthcheck.py
+!workspace/
+!workspace/AGENTS.md
+!workspace/skills/
+!workspace/skills/faq/
+!workspace/skills/faq/SKILL.md
+!workspace/skills/ticket/
+!workspace/skills/ticket/SKILL.md

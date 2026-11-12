@@ -57,6 +57,15 @@ class IdentityTests(unittest.IsolatedAsyncioTestCase):
                         await asyncio.sleep(0)
                         return json.loads(await get.execute(ticket_id=ticket['ticket_id']))['success']
                 self.assertEqual(await asyncio.gather(read_as(alice),read_as(bob)),[True,False])
+                for channel in ['qq','weixin']:
+                    customer = RequestContext(channel=channel,chat_id='channel-user',sender_id='channel-user',message_id='channel-message')
+                    with request_context(customer):
+                        own = json.loads(await create.execute(title='新渠道售后',description='验证渠道身份'))
+                        self.assertEqual(own['ticket']['platform'],channel)
+                        found = json.loads(await get.execute(ticket_id=own['ticket']['ticket_id']))
+                        self.assertTrue(found['success'])
+                        denied = json.loads(await get.execute(ticket_id=ticket['ticket_id']))
+                        self.assertEqual(denied['error']['code'],'NOT_FOUND')
             finally:
                 for connection in connections.values():
                     await connection.aclose()

@@ -1,19 +1,19 @@
 # EchoBridge 多平台智能客服系统
 
-Telegram 与飞书接待客户，飞书管理员统一处理售后工单。
+QQ、微信与 Telegram 接待客户，飞书管理员统一处理售后工单。
 
 基于 Nanobot 的零售售后 Agent 实战项目。客户可以咨询商品与售后规则、确认创建工单、补充信息和查询进度。处理人员在飞书私聊中查看跨渠道待办、更新状态并添加处理备注，客户再次查询时获得最新结果。
 
-当前已完成双平台真实会话联调，自动化测试覆盖 12 个测试方法。运行需要自行配置模型和平台凭据、准备知识库并完成机器人授权。
+当前已完成 QQ、微信、Telegram 客户渠道与飞书管理员的真实会话联调，自动化测试覆盖 15 个测试方法。运行需要自行配置模型和平台凭据、准备知识库并完成机器人授权。
 
 ## 使用场景与当前进度
 
 | 场景 | 当前能力与验证情况 |
 | --- | --- |
 | 知识库问答 | 按 FAQ Skill 读取本地 Markdown，结合适用条件回答并引用公开来源；已完成实际渠道问答验证 |
-| 用户确认建单 | 整理商品、现象、已尝试步骤和诉求，用户确认后创建本项目的支持工单；Telegram 与飞书均已建单 |
+| 用户确认建单 | 整理商品、现象、已尝试步骤和诉求，用户确认后创建本项目的支持工单；已完成客户渠道建单验证 |
 | 客户查询 | 按真实渠道和发送者筛选本人记录，支持查询状态及补充备注 |
-| 飞书集中处理 | 管理员私聊查询所有平台工单、查看详情、更新状态和添加客户可见备注；已验证处理 Telegram 来源工单 |
+| 飞书集中处理 | 管理员私聊查询所有平台工单、查看详情、更新状态和添加客户可见备注；已完成跨渠道查看与处理验证 |
 | 权限控制 | 项目入口绑定身份并校验管理员；已在真实 Telegram 会话中验证跨用户查询和冒充管理员被拒绝 |
 | 客户输出 | 关闭渠道过程提示及流式展示，以规则约束工具名、路径和内部权限信息外露；自然语言输出需持续验收 |
 | 数据持久化 | SQLite 保存工单及处理记录，已有记录重新打开及旧表迁移有自动化测试 |
@@ -27,9 +27,13 @@ Nanobot 提供 Channel、MessageBus 和 Agent Loop。本项目增加客服规则
 ```mermaid
 flowchart TD
     TG["Telegram 客户"] --> TC["Telegram Channel<br/>长轮询接收消息"]
-    FS["飞书客户或管理员"] --> FC["飞书 Channel<br/>WebSocket 长连接"]
+    QQ["QQ 客户"] --> QC["QQ Channel<br/>WebSocket 长连接"]
+    WX["微信客户"] --> WC["Weixin Channel<br/>HTTP 长轮询"]
+    FS["飞书管理员"] --> FC["飞书 Channel<br/>WebSocket 长连接"]
     TC --> IN["MessageBus 入站队列<br/>统一 InboundMessage"]
     FC --> IN
+    QC --> IN
+    WC --> IN
     IN --> LOOP["Agent Loop<br/>当前会话与 RequestContext"]
     RULES["workspace/AGENTS.md<br/>客服与输出规则"] --> LOOP
     MODEL["DeepSeek<br/>理解意图、选择工具、组织回复"] <--> LOOP
@@ -83,15 +87,24 @@ nanobot-customer-support/
 ├── .env.example                     # 可发布的凭据和管理员变量模板
 ├── config.json                      # 本地运行配置
 ├── .env                             # 本地密钥、平台凭据和管理员 ID
-├── requirements.txt                 # 固定依赖版本
+├── requirements.txt                 # 固定核心依赖版本
+├── requirements-docker.txt          # 容器使用的可选渠道依赖
+├── Dockerfile                       # Python 环境、源码与非 root 运行用户
+├── docker-compose.yml               # 服务、环境变量、健康端口与持久化卷
+├── .dockerignore                    # 构建上下文白名单，排除密钥和业务数据
+├── deploy/
+│   ├── config.docker.json           # 容器专用配置模板，无真实凭据
+│   ├── entrypoint.py                # 首次初始化运行配置，重启保留已有配置
+│   └── healthcheck.py               # Gateway readiness 检查
 ├── README.md                        # 架构、运行和验收说明
 ├── .gitignore                       # 本地配置及运行数据排除规则
 ├── mcp_servers/
 │   ├── ticket_server.py             # MCP 工具、TicketStore 和人工 CLI
-│   └── LICENSE.learn-nanobot        # 教程来源的 MIT 许可声明
+│   └── LICENSE.learn-nanobot        # MIT 许可声明
 ├── tests/
 │   ├── test_ticket_server.py        # 协议、存储、迁移、输入及并发测试
-│   └── test_ticket_identity.py      # 真实 MCP 调用的身份和管理权限测试
+│   ├── test_ticket_identity.py      # 真实 MCP 调用的身份和管理权限测试
+│   └── test_container_deployment.py # 配置初始化、重启保留与渠道依赖检查
 ├── workspace/
 │   ├── AGENTS.md                    # 客服规则、输出约束和角色分流
 │   ├── skills/
@@ -112,6 +125,7 @@ nanobot-customer-support/
 ├── data/tickets.db                 # 本地工单数据库
 ├── sessions/                       # 本地聊天历史，位于 workspace 外
 ├── pairing.json                    # 本地渠道用户配对记录
+├── weixin/account.json             # 本地微信登录状态，未上传 GitHub
 ├── logs/                           # 本地运行日志，可能包含业务内容
 ├── media/                          # 本地消息附件
 ├── llm_usage.sqlite3               # 本地模型用量记录
@@ -161,7 +175,7 @@ create_ticket 在同一事务中检查 request_id 与内容指纹。相同请求
 
 已实现的控制包括可信渠道身份绑定、客户工单范围隔离、飞书管理员私聊权限校验、SQL 参数化、建单幂等与事务更新。自动化测试同时检查伪造身份、越权管理和并发访问等场景。
 
-当前共有 12 个测试方法，使用临时数据库、模拟渠道身份和真实 MCP stdio 子进程。在安装依赖的 Python 环境中执行测试。
+当前共有 15 个测试方法，使用临时数据库、模拟渠道身份和真实 MCP stdio 子进程。在安装依赖的 Python 环境中执行测试。
 
 ```bash
 python -m unittest discover -s tests -v
@@ -178,22 +192,147 @@ python -m unittest discover -s tests -v
 
 ## 部署与运行
 
-部署说明将在 Docker 构建和验证完成后补充，届时填写经过验收的文件、路径、环境变量和运行命令。
-
 ### Docker 部署
 
-将补充镜像构建和 Compose 配置，包含项目启动入口、环境变量注入、工单及会话等数据持久化挂载。运行配置需要适配容器内路径。
+需要安装并启动 Docker Engine / Docker Desktop，且 `docker compose` 命令可用。容器自动运行 `customer_gateway.py`，启动 Nanobot Gateway 与工单 MCP 子进程，无需另行执行 `nanobot gateway`。
 
-### Nginx 反向代理配置
+QQ、微信和 Telegram 为客户渠道，飞书为管理员渠道。各平台使用长连接或轮询接入，本部署不需要公网 Webhook、域名或反向代理；通过飞书私聊处理工单，不开放 WebUI 端口。
 
-是否配置 Nginx、HTTPS 证书及公开端口，根据最终 WebUI 或 HTTP 接口的访问需求确定。当前消息接入使用 Telegram 长轮询和飞书 WebSocket 长连接。
+`docker-compose.yml`：
+
+```yaml
+services:
+  customer-service-bot:
+    build: .
+    image: echobridge:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    ports:
+      # Health endpoint only; do not publish WebUI or administration interfaces.
+      - "127.0.0.1:18792:18790"
+    volumes:
+      - customer-runtime:/runtime
+      - customer-memory:/app/workspace/memory
+      - ./workspace/knowledge:/app/workspace/knowledge:ro
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  customer-runtime:
+  customer-memory:
+```
+
+`.env` 提供模型和平台凭据；`customer-runtime` 保存工单、运行配置、配对、微信登录和会话，`customer-memory` 保存长期记忆；本地知识库只读挂载到容器。镜像不包含真实密钥、知识库正文或运行数据。
+
+| 文件 | 作用 |
+| --- | --- |
+| `Dockerfile` | 构建 Python、Nanobot、渠道依赖及项目代码的运行镜像 |
+| `requirements-docker.txt` | 固定飞书、Telegram、QQ、微信使用的可选依赖 |
+| `.dockerignore` | 通过构建白名单排除本地密钥和业务数据 |
+| `deploy/config.docker.json` | 容器配置模板，使用环境变量引用与容器路径 |
+| `deploy/entrypoint.py` | 首次初始化运行配置，后续启动保留已有配置 |
+| `deploy/healthcheck.py` | 检查 Gateway readiness，供 Docker 显示健康状态 |
+
+容器代码和客服规则位于 `/app/`，workspace 为 `/app/workspace/`，运行配置为 `/runtime/config.json`，工单数据库为 `/runtime/data/tickets.db`，微信登录状态位于 `/runtime/weixin/`。运行配置与聊天历史位于 workspace 外。
+
+已完成 Linux ARM64 镜像构建、容器内 15 项自动化测试、四个业务渠道连接、8 项 MCP 能力注册、真实模型回复及重启后的数据保留验证。完整业务验收仍按下方客户与管理员操作流程进行。
 
 ### 部署步骤
 
-1. 准备知识库与本地配置，填写模型和平台凭据。
-2. 构建镜像并配置持久化目录。
-3. 启动容器，检查模型、渠道及 MCP 工具连接。
-4. 验证客户建单、管理员处理和客户回查。
-5. 重启或重建容器，核对工单和配对等运行数据。
+**1. 获取项目，准备知识库**
 
-具体命令与健康检查方式待容器化验收后补充。
+```bash
+git clone https://github.com/tommie-04/EchoBridge.git
+cd EchoBridge
+mkdir -p workspace/knowledge/ikea
+```
+
+将 FAQ 文档放到 `workspace/knowledge/ikea/general.md`。当前 FAQ Skill 按该路径读取，仓库不分发验证用的知识库正文。替换产品场景时，同步修改 `workspace/skills/faq/SKILL.md` 中的路径与业务描述。
+
+**2. 配置环境变量**
+
+首次部署复制模板，随后编辑 `.env`；已有 `.env` 时，下面的命令不会覆盖它。
+
+```bash
+cp -n .env.example .env
+```
+
+填写以下变量：
+
+| 环境变量 | 用途 |
+| --- | --- |
+| `CUSTOMER_SUPPORT_API_KEY` | DeepSeek API Key，模板使用 `deepseek-flash` |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token |
+| `QQ_APP_ID` / `QQ_APP_SECRET` | QQ 机器人凭据 |
+| `FEISHU_APP_ID` / `FEISHU_APP_SECRET` | 飞书应用凭据 |
+| `TICKET_ADMIN_FEISHU_IDS` | 飞书管理员 Open ID，多个值以英文逗号分隔 |
+
+四个业务渠道默认启用，微信通过下一步扫码获取登录状态。新实例若需要停用某渠道，在首次启动前修改 `deploy/config.docker.json` 中该渠道的 `enabled`。
+
+**3. 构建镜像，完成微信登录**
+
+切换部署前，停止使用同一组机器人账号的本地 Gateway。容器使用独立数据卷，不会自动迁入本地工单、配对或登录状态；已有实例迁移需要另外备份、导入。
+
+```bash
+docker compose config --quiet
+docker compose build
+docker compose run --rm customer-service-bot nanobot channels login weixin --config /runtime/config.json
+```
+
+按终端提供的链接或二维码授权，微信登录状态保存在数据卷中，后续启动通常无需重新扫码。授权失效时先停止服务，再执行登录命令。
+
+**4. 启动服务并检查状态**
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs --tail=100 customer-service-bot
+curl --fail http://127.0.0.1:18792/health
+```
+
+`-d` 表示后台运行，关闭终端不影响服务。`healthy` 和 `ready: true` 表示 Gateway 就绪，还需在日志中确认各平台已连接、工单 MCP 注册成功。健康端口只绑定宿主机 `127.0.0.1:18792`。
+
+**5. 完成首次用户配对**
+
+从客户平台和飞书私聊 Bot，获得配对码后，在同一容器实例中批准自己的请求，再重新发送消息。将示例代码替换为实际配对码。
+
+```bash
+docker compose exec customer-service-bot nanobot agent --config /runtime/config.json -m "/pairing approve ABCD-EFGH"
+```
+
+配对允许用户使用 Bot。飞书管理员还需满足 `TICKET_ADMIN_FEISHU_IDS` 白名单及私聊条件；客户渠道用户不会因此获得管理员权限。
+
+**6. 验证业务链路和持久化**
+
+分别在 QQ、微信、Telegram 测试 FAQ 解答、创建工单和本人回查；在飞书管理员私聊中查看所有平台工单，更新状态与处理备注，再由客户回查结果。
+
+```bash
+docker compose restart customer-service-bot
+docker compose ps
+curl --fail http://127.0.0.1:18792/health
+```
+
+等待服务恢复健康后，查询原工单，确认状态、处理记录和配对保留。
+
+### 日常运行与更新
+
+| 操作 | 命令 |
+| --- | --- |
+| 启动或恢复服务 | `docker compose up -d` |
+| 查看状态 | `docker compose ps` |
+| 持续查看日志 | `docker compose logs -f --tail=50 customer-service-bot` |
+| 重启服务 | `docker compose restart customer-service-bot` |
+| 停止服务 | `docker compose stop` |
+| 修改 `.env` 后加载新环境变量 | `docker compose up -d --force-recreate` |
+| 修改源码、AGENTS 或 Skills 后构建并更新 | `docker compose up -d --build` |
+| 删除容器和网络，保留数据卷 | `docker compose down` |
+
+`deploy/config.docker.json` 只在数据卷中尚无运行配置时复制。修改模板不会覆盖已有实例；已有实例需先停止服务，单独更新数据卷中的 `/runtime/config.json`，然后重新启动。不要用 `docker compose down -v` 做普通停止操作，该命令会删除命名卷及其中的业务数据。
+
+宿主机和 Docker 引擎需要保持运行；电脑休眠、关机或退出 Docker Desktop 会中断服务。需要持续在线时，可将相同配置部署到常驻服务器。切换回本地开发前先停止容器，避免两个 Gateway 同时接收同一机器人账号的消息。

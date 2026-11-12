@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 import sys
 
-SUPPORTED_CHANNELS = {'telegram', 'feishu', 'dingtalk', 'discord', 'weixin', 'wecom'}
+SUPPORTED_CHANNELS = {'qq', 'telegram', 'feishu', 'dingtalk', 'discord', 'weixin', 'wecom'}
 ADMIN_TOOLS = {'admin_list_tickets', 'admin_get_ticket', 'admin_update_ticket'}
 TICKET_TOOLS = {'create_ticket', 'get_ticket', 'list_user_tickets', 'add_ticket_comment', 'get_ticket_access_context'}
 
@@ -81,7 +81,9 @@ def install_ticket_identity_binding() -> None:
 def main() -> None:
     install_ticket_identity_binding()
     from nanobot.cli.entry import main as nanobot_main
-    config = str(Path(__file__).resolve().parent / 'config.json')
+    config = str(Path(os.environ.get(
+        'CUSTOMER_SUPPORT_CONFIG', str(Path(__file__).resolve().parent / 'config.json')
+    )).expanduser().resolve())
     sys.argv = ['nanobot', 'gateway', '--config', config, *sys.argv[1:]]
     nanobot_main()
 

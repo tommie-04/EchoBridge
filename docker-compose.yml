@@ -1,0 +1,25 @@
+services:
+  customer-service-bot:
+    build: .
+    image: echobridge:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    ports:
+      # Health endpoint only; do not publish WebUI or administration interfaces.
+      - "127.0.0.1:18792:18790"
+    volumes:
+      - customer-runtime:/runtime
+      - customer-memory:/app/workspace/memory
+      - ./workspace/knowledge:/app/workspace/knowledge:ro
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  customer-runtime:
+  customer-memory:
