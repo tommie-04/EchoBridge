@@ -74,26 +74,49 @@ flowchart TD
 
 ## 项目目录与文件职责
 
-下面展示 GitHub 已提交的主要代码、配置模板和测试文件，路径相对于项目根目录。
+以下路径均相对于项目根目录。真实配置、知识库正文及运行数据仅在本地保存，未上传 GitHub；仓库中提供对应配置模板和代码。
 
 ```text
 nanobot-customer-support/
-├── customer_gateway.py             # gateway 启动入口、身份绑定与管理员权限校验
-├── config.example.json             # 脱敏的模型、渠道、workspace 与 MCP 配置模板
-├── .env.example                    # 密钥和管理员环境变量的占位模板
-├── requirements.txt                # 固定依赖版本
-├── README.md                       # 项目介绍与架构说明
-├── .gitignore                      # 本地配置、密钥和运行数据排除规则
+├── customer_gateway.py              # 项目启动入口与身份、权限扩展
+├── config.example.json              # 可发布的配置模板，路径为占位内容
+├── .env.example                     # 可发布的凭据和管理员变量模板
+├── config.json                      # 本地运行配置
+├── .env                             # 本地密钥、平台凭据和管理员 ID
+├── requirements.txt                 # 固定依赖版本
+├── README.md                        # 架构、运行和验收说明
+├── .gitignore                       # 本地配置及运行数据排除规则
 ├── mcp_servers/
-│   └── ticket_server.py            # 工单 MCP 服务、SQLite 存储与人工管理 CLI
+│   ├── ticket_server.py             # MCP 工具、TicketStore 和人工 CLI
+│   └── LICENSE.learn-nanobot        # 教程来源的 MIT 许可声明
 ├── tests/
-│   ├── test_ticket_server.py       # 协议、数据库、幂等与并发测试
-│   └── test_ticket_identity.py     # 身份隔离、管理员权限及集成测试
-└── workspace/
-    ├── AGENTS.md                   # 客服规则、输出规范和角色分流
-    └── skills/
-        ├── faq/SKILL.md            # 知识库读取、来源引用和人工升级流程
-        └── ticket/SKILL.md         # 客户查询、建单及管理员处理流程
+│   ├── test_ticket_server.py        # 协议、存储、迁移、输入及并发测试
+│   └── test_ticket_identity.py      # 真实 MCP 调用的身份和管理权限测试
+├── workspace/
+│   ├── AGENTS.md                    # 客服规则、输出约束和角色分流
+│   ├── skills/
+│   │   ├── faq/SKILL.md             # 知识库读取、来源引用和人工升级流程
+│   │   └── ticket/SKILL.md          # 角色识别及客户、管理员工具使用流程
+│   ├── knowledge/ikea/              # 本地验证资料，未随仓库分发
+│   │   ├── general.md              # 合并的 FAQ 与退货政策
+│   │   ├── sources.json             # 来源、抓取时间和校验值
+│   │   └── README.md                # 本地资料说明
+│   ├── memory/                     # 本地长期记忆
+│   ├── USER.md                     # 本地用户信息
+│   ├── SOUL.md                     # 本地表达风格
+│   ├── HEARTBEAT.md                # 本地周期任务说明
+│   ├── prompts/                    # 本地提示词覆盖
+│   ├── cron/                       # 本地任务数据
+│   ├── triggers/                   # 本地触发器数据
+│   └── .nanobot/                   # workspace 运行数据
+├── data/tickets.db                 # 本地工单数据库
+├── sessions/                       # 本地聊天历史，位于 workspace 外
+├── pairing.json                    # 本地渠道用户配对记录
+├── logs/                           # 本地运行日志，可能包含业务内容
+├── media/                          # 本地消息附件
+├── llm_usage.sqlite3               # 本地模型用量记录
+├── config.json.lock                # 配置写入锁
+└── cache/、cli-apps/、run/、webui/   # 本地框架运行目录
 ```
 
 真实配置与密钥、知识库正文、工单数据库、聊天历史、配对记录、个人资料及日志在本地保存，已通过 Git 忽略规则排除。运行前需要自行填写配置模板并准备知识资料。
