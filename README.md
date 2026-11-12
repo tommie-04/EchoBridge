@@ -1,4 +1,4 @@
-# Nanobot 多平台智能客服
+# EchoBridge 多平台智能客服系统
 
 Telegram 与飞书接待客户，飞书管理员统一处理售后工单。
 
