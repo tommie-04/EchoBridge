@@ -1,0 +1,62 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "/ABSOLUTE/PATH/TO/PROJECT/workspace",
+      "model": "deepseek/deepseek-chat",
+      "provider": "deepseek"
+    }
+  },
+  "providers": {
+    "deepseek": {
+      "apiKey": "${CUSTOMER_SUPPORT_API_KEY}",
+      "apiBase": "https://api.deepseek.com"
+    }
+  },
+  "channels": {
+    "sendProgress": false,
+    "sendToolHints": false,
+    "showReasoning": false,
+    "telegram": {
+      "enabled": true,
+      "token": "${TELEGRAM_BOT_TOKEN}",
+      "allowFrom": [],
+      "mode": "polling",
+      "streaming": false
+    },
+    "feishu": {
+      "enabled": true,
+      "appId": "${FEISHU_APP_ID}",
+      "appSecret": "${FEISHU_APP_SECRET}",
+      "allowFrom": [],
+      "groupPolicy": "mention",
+      "streaming": false
+    }
+  },
+  "tools": {
+    "mcpServers": {
+      "ticket_server": {
+        "type": "stdio",
+        "command": "/ABSOLUTE/PATH/TO/PYTHON",
+        "args": [
+          "/ABSOLUTE/PATH/TO/PROJECT/mcp_servers/ticket_server.py",
+          "serve"
+        ],
+        "cwd": "/ABSOLUTE/PATH/TO/PROJECT",
+        "env": {
+          "TICKET_DB_PATH": "/ABSOLUTE/PATH/TO/PROJECT/data/tickets.db",
+          "TICKET_ENABLE_ADMIN_TOOLS": "1"
+        },
+        "enabledTools": [
+          "create_ticket",
+          "get_ticket",
+          "list_user_tickets",
+          "add_ticket_comment",
+          "get_ticket_access_context",
+          "admin_list_tickets",
+          "admin_get_ticket",
+          "admin_update_ticket"
+        ]
+      }
+    }
+  }
+}
