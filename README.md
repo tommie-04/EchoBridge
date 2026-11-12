@@ -58,6 +58,8 @@ QQ、微信与 Telegram 接待客户，飞书管理员统一处理售后工单�
 
 Nanobot 提供 Channel、MessageBus 和 Agent Loop。本项目增加客服规则、Skills、工单服务，以及工单工具的可信身份绑定。
 
+模型通过 LLM API 接入，可在配置中选择 Nanobot 支持的提供商和具备工具调用能力的模型。设置 `agents.defaults.provider`、`agents.defaults.model` 及对应 `providers` 凭据即可适配；默认模板使用 DeepSeek，架构不绑定具体模型品牌。
+
 ```mermaid
 flowchart TD
     TG["Telegram 客户"] --> TC["Telegram Channel<br/>长轮询接收消息"]
@@ -70,7 +72,7 @@ flowchart TD
     WC --> IN
     IN --> LOOP["Agent Loop<br/>当前会话与 RequestContext"]
     RULES["workspace/AGENTS.md<br/>客服与输出规则"] --> LOOP
-    MODEL["DeepSeek<br/>理解意图、选择工具、组织回复"] <--> LOOP
+    MODEL["LLM API<br/>理解意图、选择工具、组织回复"] <--> LOOP
     LOOP --> FAQ["FAQ Skill + read_file"]
     FAQ --> KB["本地 general.md<br/>条款、条件与来源"]
     KB --> LOOP
