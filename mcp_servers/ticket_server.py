@@ -20,6 +20,7 @@ import re
 import sqlite3
 from typing import Any, Iterator, Literal
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 Priority = Literal['low', 'medium', 'high', 'urgent']
@@ -53,6 +54,19 @@ def choice_field(value: str, name: str, choices: tuple[str, ...]) -> str:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec='microseconds')
+
+
+def local_timestamp(value: str | None, zone: ZoneInfo) -> str | None:
+    """Convert aware timestamps for display without guessing legacy timezones."""
+    if value is None:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(zone).isoformat(timespec='seconds')
 
 
 class TicketStore:
@@ -120,6 +134,12 @@ class TicketStore:
         if not isinstance(comments, list):
             raise TicketError('INVALID_DATA', '工单记录格式异常，请联系处理人员')
         ticket['comments'] = comments
+        zone = ZoneInfo(os.environ.get('TICKET_TIMEZONE', 'America/Los_Angeles'))
+        ticket['display_timezone'] = zone.key
+        for key in ('created_at', 'updated_at'):
+            ticket[key + '_local'] = local_timestamp(ticket[key], zone)
+        for event in comments:
+            event['timestamp_local'] = local_timestamp(event.get('timestamp'), zone)
         ticket.pop('request_fingerprint', None)
         ticket.pop('request_id', None)
         return ticket
@@ -234,10 +254,12 @@ class TicketStore:
                      'previous_status': ticket['status'], 'status': new_status}
             if owner is None:
                 event['operator_id'] = text_field(operator_id, 'operator_id', 256)
-            ticket['comments'].append(event)
+            # Persist only business events, not the derived display-time fields.
+            comments = json.loads(row['comments'] or '[]')
+            comments.append(event)
             conn.execute('''UPDATE tickets SET status = ?, comments = ?, updated_at = ?
                 WHERE ticket_id = ?''', (new_status,
-                json.dumps(ticket['comments'], ensure_ascii=False), now, ticket_id))
+                json.dumps(comments, ensure_ascii=False), now, ticket_id))
             updated = conn.execute('SELECT * FROM tickets WHERE ticket_id = ?', (ticket_id,)).fetchone()
             return {'success': True, 'ticket': self.ticket_dict(updated)}
 
