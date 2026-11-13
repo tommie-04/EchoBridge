@@ -1,0 +1,44 @@
+{
+  "default_shop_id": "tt-us-west",
+  "shops": [
+    {
+      "shop_id": "tt-us-west",
+      "name": "Lumen Home US-West",
+      "region": "US-West",
+      "currency": "USD",
+      "warehouse": "Chino, CA Fulfillment Center",
+      "return_window_days": 30,
+      "channels": ["telegram:us_west", "telegram:bot-us-west", "telegram", "qq"],
+      "faq_files": [
+        "knowledge/brand/common.md",
+        "knowledge/shops/tt-us-west.md"
+      ]
+    },
+    {
+      "shop_id": "tt-us-east",
+      "name": "Lumen Home US-East",
+      "region": "US-East",
+      "currency": "USD",
+      "warehouse": "Edison, NJ Fulfillment Center",
+      "return_window_days": 30,
+      "channels": ["telegram:us_east", "telegram:bot-us-east", "weixin"],
+      "faq_files": [
+        "knowledge/brand/common.md",
+        "knowledge/shops/tt-us-east.md"
+      ]
+    },
+    {
+      "shop_id": "tt-uk",
+      "name": "Lumen Home UK",
+      "region": "UK",
+      "currency": "GBP",
+      "warehouse": "Northampton Logistics Hub, UK",
+      "return_window_days": 14,
+      "channels": ["telegram:uk", "telegram:bot-uk", "discord"],
+      "faq_files": [
+        "knowledge/brand/common.md",
+        "knowledge/shops/tt-uk.md"
+      ]
+    }
+  ]
+}
