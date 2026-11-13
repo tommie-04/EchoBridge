@@ -28,6 +28,7 @@ class IdentityTests(unittest.IsolatedAsyncioTestCase):
                 for tool in [create,get]:
                     self.assertNotIn('user_id',tool.parameters['properties'])
                     self.assertNotIn('platform',tool.parameters['properties'])
+                    self.assertNotIn('shop_id',tool.parameters['properties'])
                 self.assertNotIn('request_id',create.parameters['properties'])
                 args = dict(title='杯子破损',description='需要人工核实')
                 self.assertIn('AUTH_CONTEXT_REQUIRED',await create.execute(**args))
@@ -36,11 +37,12 @@ class IdentityTests(unittest.IsolatedAsyncioTestCase):
                 bob = RequestContext(channel='feishu:assistant-1',chat_id='group-1',
                     sender_id='bob',message_id='message-2')
                 with request_context(alice):
-                    first = json.loads(await create.execute(**args,user_id='forged',platform='telegram',request_id='forged'))
+                    first = json.loads(await create.execute(**args,user_id='forged',platform='telegram',shop_id='forged-shop',request_id='forged'))
                     retry = json.loads(await create.execute(**args,request_id='another-forged-key'))
                 ticket = first['ticket']
                 self.assertEqual(ticket['user_id'],'alice')
                 self.assertEqual(ticket['platform'],'feishu')
+                self.assertEqual(ticket['shop_id'],'tt-us-west')
                 self.assertFalse(retry['created'])
                 with request_context(bob):
                     denied = json.loads(await get.execute(ticket_id=ticket['ticket_id'],user_id='alice',platform='feishu'))
@@ -90,7 +92,10 @@ class IdentityTests(unittest.IsolatedAsyncioTestCase):
                 admin = RequestContext(channel='feishu:bot',chat_id='admin',sender_id='admin',metadata={'chat_type':'p2p'})
                 group_admin = RequestContext(channel='feishu:bot',chat_id='group',sender_id='admin',metadata={'chat_type':'group'})
                 with request_context(customer):
-                    self.assertEqual(json.loads(await access.execute())['role'],'customer')
+                    cust_role = json.loads(await access.execute())
+                    self.assertEqual(cust_role['role'],'customer')
+                    self.assertEqual(cust_role['shop_id'],'tt-us-west')
+                    self.assertTrue(cust_role['faq_files'])
                     ticket = json.loads(await create.execute(title='杯子破损',description='待处理'))['ticket']
                     denial = await listing.execute()
                     self.assertIn('FORBIDDEN',denial)
@@ -101,17 +106,22 @@ class IdentityTests(unittest.IsolatedAsyncioTestCase):
                 with request_context(group_admin):
                     self.assertEqual(json.loads(await access.execute())['role'],'customer')
                     self.assertIn('FORBIDDEN',await listing.execute())
-                telegram_customer = RequestContext(channel='telegram',chat_id='tg-user',sender_id='tg-user',message_id='tg-m1')
+                telegram_customer = RequestContext(channel='telegram:uk',chat_id='tg-user',sender_id='tg-user',message_id='tg-m1')
                 with request_context(telegram_customer):
-                    await create.execute(title='床套仅退款申请',description='需要人工核实退款条件')
-                    self.assertEqual(json.loads(await access.execute())['role'],'customer')
+                    uk_ticket = json.loads(await create.execute(title='英国店挂灯故障',description='需要人工核实退换'))['ticket']
+                    self.assertEqual(uk_ticket['shop_id'],'tt-uk')
+                    self.assertEqual(json.loads(await access.execute())['shop_id'],'tt-uk')
                 with request_context(admin):
                     role = json.loads(await access.execute())
                     self.assertEqual(role['role'],'admin')
                     self.assertEqual(role['scope'],'all_platforms')
+                    self.assertTrue(role.get('shops'))
                     records = json.loads(await listing.execute(status='open'))
                     self.assertEqual(records['total'],2)
-                    self.assertEqual({t['platform'] for t in records['tickets']},{'feishu','telegram'})
+                    # Filter by shop_id in admin list
+                    uk_filtered = json.loads(await listing.execute(status='open', shop_id='tt-uk'))
+                    self.assertEqual(uk_filtered['total'], 1)
+                    self.assertEqual(uk_filtered['tickets'][0]['shop_id'], 'tt-uk')
                     changed=json.loads(await update.execute(ticket_id=ticket['ticket_id'],status='in_progress',comment='请补充照片',operator_id='forged'))
                 self.assertEqual(changed['ticket']['comments'][-1]['operator_id'],'admin')
                 with request_context(customer):
