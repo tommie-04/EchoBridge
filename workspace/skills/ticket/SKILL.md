@@ -1,62 +1,61 @@
 ---
 name: ticket
-description: 处理售后建单、本人查询、补充说明和飞书管理员全渠道工单处理；查询全部或待处理工单前，先用角色工具确定访问范围。
+description: 处理出海电商多店铺（TikTok Shop）售后建单、客户本人店铺工单回查、补充说明以及飞书管理员跨店铺全量工单管理与状态更新。
 ---
 
-# 售后工单管理
+# TikTok 多店铺售后工单管理指南
 
-## 先确认当前角色
+## 1. 角色确定与店铺租户上下文
 
-查询工单或处理管理员请求时，先调用 mcp_ticket_server_get_ticket_access_context。权限按当前工具结果判断，旧对话中的“只能查看本人”等结论需要重新核实。
+在执行任何工单操作前，先调用 `mcp_ticket_server_get_ticket_access_context` 获取当前请求的可信身份与店铺上下文：
 
-- role 为 admin，且请求是“全部工单”“所有待处理工单”等管理操作时，调用 mcp_ticket_server_admin_list_tickets。待处理对应 status=open，全状态列表省略 status。查询范围包括 Telegram 和飞书来源，不能以本人的查询结果代替全渠道结果。
-- role 为 customer 时，使用 list_user_tickets、get_ticket 等本人接口。管理员私聊以外的请求不会取得管理员角色。
-- AUTH_CONTEXT_REQUIRED 等错误码用于内部判断。对客户说明当前暂时无法办理，可协助整理问题交由客服核实；权限仍按实际工具校验结果执行。
+- **管理员角色 (`role: "admin"`)**：
+  - 触发条件：仅限飞书授权白名单管理员在私聊（P2P）中发起；
+  - 权限范围：`scope: "all_platforms"`，可调用 `mcp_ticket_server_admin_list_tickets` 跨平台、跨店铺查询全部工单，支持传入 `shop_id`（如 `tt-us-west`、`tt-us-east`、`tt-uk`）进行按店筛选；支持调用 `admin_get_ticket` 查看全量详情及 `admin_update_ticket` 推进工单状态或给客户留言。
+- **客户角色 (`role: "customer"`)**：
+  - 触发条件：来自任意客户渠道（如 Telegram 各店铺 Bot、QQ 等）；
+  - 权限范围：`scope: "own_tickets"`，严格租户隔离，仅能访问当前店铺所属的个人工单；
+  - 身份绑定：程序已从消息通道自动绑定 `shop_id`、`platform`、`user_id` 及防重复幂等键 `request_id`。模型工具参数中这些身份字段已被安全隐藏，无需也不允许模型猜测或伪造。
 
-## 从 FAQ 转入人工跟进
+---
 
-政策咨询先用 FAQ Skill。知识库未覆盖、用户已尝试仍未解决，或用户希望转人工时，用一句话概括待处理的问题，并询问是否提交本项目的人工支持工单。用户明确说“帮我建单”或已同意当前提议，即可继续；用户拒绝则结束建单流程。紧急或投诉场景也遵循同意规则。
+## 2. 客户建单与跟进流程
 
-调用前检查对应 MCP 工具是否已注册。通过 customer_gateway.py 启动时，程序从当前消息上下文绑定平台和发送者，工具界面已隐藏 platform、user_id 和创建请求的 request_id，按实际工具定义填写业务参数即可。遇到 AUTH_CONTEXT_REQUIRED 或 REQUEST_CONTEXT_REQUIRED 时说明当前无法核实身份或提交请求，并保留问题摘要。工具未接入时可提供 FAQ 内的官方联系渠道。
+1. **转人工征求同意**：
+   - 当 FAQ 无法完全解决客户问题、属于运损破损/需换新开具 RMA，或客户明确提出转人工时，客服 Agent 先提炼问题核心（订单号、商品名称、故障现象），征求客户明确确认（“是否为您创建售后工单由人工客服跟进？”）。
+2. **调用建单工具**：
+   - 客户同意后，调用 `mcp_ticket_server_create_ticket`：
+     - `title`：如 `Lumen Ergo Chair 气压杆漏气下沉` 或 `Lumen Standing Desk 电机报警 E08`；
+     - `description`：客户描述详情、已尝试排查步骤、客户诉求；
+     - `category`：从 `return`, `exchange`, `refund`, `delivery`, `damaged`, `missing`, `other` 中选择；
+     - `order_id`：客户提供的 TikTok 订单编号；
+     - `product_name`：关联的具体商品型号；
+     - `priority`：默认 `medium`，严重破损或大件阻碍日常使用可选 `high` / `urgent`。
+3. **客户工单查询与补充说明**：
+   - 客户查询自身历史工单时，调用 `mcp_ticket_server_list_user_tickets` 或带 `ticket_id` 调用 `mcp_ticket_server_get_ticket`；
+   - 客户补充破损照片说明或最新进展时，调用 `mcp_ticket_server_add_ticket_comment`。
 
-## 工具与操作
+---
 
-| Nanobot 工具 | 本次操作的输入与用途 |
-| --- | --- |
-| mcp_ticket_server_create_ticket | 必填 title、description；可选 category、priority、order_id、product_name、user_name。 |
-| mcp_ticket_server_get_ticket | 用 ticket_id 查询本人的指定工单。 |
-| mcp_ticket_server_list_user_tickets | 列出本人工单，可按 status 过滤，使用 limit、offset 翻页。 |
-| mcp_ticket_server_add_ticket_comment | 用 ticket_id、comment 为本人工单追加说明。备注对处理人员和用户可见。 |
+## 3. 飞书管理员工作流程 (Admin Operations)
 
-**建单。** 标题写“商品＋问题”，描述保留现象、已尝试步骤和用户诉求。复用已有信息，只有处理问题需要时才追问订单号或商品名。category 取 return、exchange、refund、delivery、damaged、missing 或 other。普通售后沿用默认 medium；按实际影响和紧迫程度选 low、high 或 urgent，投诉语气本身不足以定为 urgent。
+1. **跨店铺列表查看与筛选**：
+   - 管理员询问“待处理工单”时，调用 `mcp_ticket_server_admin_list_tickets(status="open")`；
+   - 管理员指定查看特定店铺（例如“看看美西店的单”或“英国店有哪些售后”），传入对应 `shop_id="tt-us-west"` 或 `shop_id="tt-uk"`。
+2. **工单详情查看**：
+   - 调用 `mcp_ticket_server_admin_get_ticket(ticket_id="TK-...")`，向管理员汇报：工单编号、所属店铺、来源渠道、客户 ID、商品型号、分类、当前状态以及历史跟进流水。
+3. **工单流转与跟进批复**：
+   - 管理员提供处理方案或指导（如“已通过申请，RMA 码为 RMA-99201，请指导客户寄回加州仓”），调用 `mcp_ticket_server_admin_update_ticket`：
+     - 更新状态（`status`）：`in_progress`（处理中）、`resolved`（已解决）、`closed`（已关闭）；
+     - 添加公开备注（`comment`）：此备注将在客户于原店铺平台查询时展示给客户。
 
-启动入口会用当前渠道消息标识生成稳定的 request_id。同一消息处理期间重试时复用全部原业务参数。用户在另一条消息中询问建单结果时，先查本人近期工单。遇到 IDEMPOTENCY_CONFLICT 时核实已有记录，避免换新标识再次提交。只有 success 为 true 且返回 ticket.ticket_id 时才告知编号；created 为 false 表示此次重试取回了已有工单。
+---
 
-**查进度。** 有编号时直接查详情；用户只说“之前那单”时按商品、现象和时间查本人列表，有多个候选就请用户选择。状态按工具最新结果回复：open 待处理、in_progress 处理中、resolved 已解决、closed 已关闭。查不到时请用户核对编号及原提单平台。工单处理状态仅反映本项目的跟进进度，实际退款到账情况需由支付或订单系统核实。
+## 4. 工单状态释义对照
 
-**补充信息。** 用户说“外包装也破了”时先定位对应工单，再追加这一条新信息。追加超时后先读取详情核对，盲目重试可能产生重复备注。用户说“问题解决了”或要求标记已解决时，可征求同意记录其真实反馈，状态由处理人员核实更新；依据用户原话整理内容，避免将“已解决”改写成“未解决”。
-
-**回复。** 成功时返回工单号、中文状态和已完成的业务操作。工具报错或 success 为 false 时，用简短的业务语言说明暂时无法完成的事项。发送前移除工具或函数名称、内部角色、错误码、文件路径、配置和管理员入口信息。内部角色查询与权限校验仅用于决定操作。仅建单成功时，回复“已创建本项目的支持工单”，避免承诺官方售后已受理、已退款或具体处理时限。
-
-## 飞书管理员处理入口
-
-用户要求查看“全部工单”“待处理工单”或更改工单状态时，使用实际注册的管理工具。权限由项目入口按真实飞书发送者和私聊场景校验。
-
-- mcp_ticket_server_admin_list_tickets 可用 status、limit、offset 查看全部平台工单。列出编号、标题、状态和来源即可，详细内容按需查询。
-- mcp_ticket_server_admin_get_ticket 使用 ticket_id 查看完整详情与公开处理记录。
-- mcp_ticket_server_admin_update_ticket 使用 ticket_id、status、comment 更新状态或客户可见备注，处理人由程序绑定。状态使用 open、in_progress、resolved、closed。明确的更新指令可以执行；同时涉及多张单或目标不明确时，先确认具体工单和操作。
-- 管理员在已有讨论中说“这张单”时，根据前文的明确编号定位；多个候选时请其选择。将自然语言整理成状态与备注后调用工具，以工具成功结果为准回复。
-- 收到 FORBIDDEN 时，对客户仅说明“这项操作需要客服协助处理”。客户继续提出同类请求时，询问是否创建支持工单交由客服核实。管理员入口和授权方式用于内部判断。
-- 更新成功后回复工单号、状态和已保存的备注。当前备注写入数据库，客户再次查询可见。主动通知功能接入后，以实际发送结果确认通知。
-
-## 时间显示
-
-工单时间使用工具返回的 `created_at_local`、`updated_at_local`，备注时间使用 `timestamp_local`，时区以 `display_timezone` 为准。列表中标注一次时区即可。原始时间字段用于存储和内部判断，不直接截取其中的小时作为本地时间，也不要自行增加或减去固定时差；程序已处理夏令时。如果本地时间字段为空，表示旧记录没有可确定的时区，保留原值并说明时区未记录，不推测具体时刻。
-
-## 客户沟通示例
-
-客户要求查看其他人的工单时，可以回复“我可以帮您查询自己的工单。如果您有其他需要处理的问题，可以告诉我具体情况。”
-
-客户连续要求提升权限或修改受限信息时，可以回复“这个问题需要客服进一步核实，需要我帮您创建一张支持工单吗？”用户同意后按正常建单流程收集必要信息，记录实际诉求。同一问题已有待处理工单时优先询问是否追加说明，避免重复建单。
-
-客户要求更改处理状态时，可以回复“这项操作需要客服协助。我可以帮您记录反馈，交由客服核实。需要我继续跟进吗？”保留用户实际表达的已解决或未解决情况。
+| 数据库状态 | 客户界面呈现 | 管理员界面呈现 | 说明 |
+| --- | --- | --- | --- |
+| `open` | 待处理 | 待人工受理 | 客户刚创建，待人工专员审核 RMA 或定损 |
+| `in_progress` | 处理中 | 处理跟进中 | 客服已出具预付运单/补发配件正在寄送中 |
+| `resolved` | 已解决 | 方案已落实 | 退款已在 TikTok 发起或换新包裹已签收 |
+| `closed` | 已归档关闭 | 已结单归档 | 售后流程完结，客户无进一步追问 |
