@@ -22,35 +22,35 @@
 
 ```mermaid
 flowchart TD
-    subgraph Storefronts [TikTok Shop 多店矩阵 (前台客户会话)]
+    subgraph Storefronts ["TikTok Shop 多店矩阵 (前台客户会话)"]
         S1["TikTok 美西店 (tt-us-west)<br/>Telegram / QQ 渠道接入"]
         S2["TikTok 美东店 (tt-us-east)<br/>微信 / Telegram 渠道接入"]
         S3["TikTok 英国店 (tt-uk)<br/>Telegram / Discord 渠道接入"]
     end
 
-    subgraph AdminOffice [企业内部运营后台]
+    subgraph AdminOffice ["企业内部运营后台"]
         FS["飞书管理员 (Feishu P2P)<br/>授权专员私聊查看全量工单"]
     end
 
-    subgraph NanobotCore [Nanobot 消息总线与执行引擎]
+    subgraph NanobotCore ["Nanobot 消息总线与执行引擎"]
         CH["Channel 适配层<br/>消息协议归一化"]
         MAP["shop_registry<br/>Channel 账号到 shop_id 确定性映射"]
         BUS["MessageBus 入站队列<br/>生成可信 InboundMessage"]
         LOOP["Agent Loop<br/>会话上下文 / RequestContext"]
     end
 
-    subgraph SecurityGateway [customer_gateway 零信任安全网关]
+    subgraph SecurityGateway ["customer_gateway 零信任安全网关"]
         GW["猴子补丁 MCPToolWrapper<br/>1. 动态隐藏 platform / user_id / shop_id<br/>2. 注入真实渠道身份与店铺租户<br/>3. 计算消息事件级幂等 request_id<br/>4. 飞书 P2P 管理员鉴权拦截"]
     end
 
-    subgraph KnowledgeOverlay [确定性双文件政策路由 (No RAG)]
+    subgraph KnowledgeOverlay ["确定性双文件政策路由 (No RAG)"]
         COMMON["knowledge/brand/common.md<br/>品牌全系规格 / 质保 / 缺陷判定 / 转人工准则"]
         SHOP_FILE["knowledge/shops/{shop_id}.md<br/>属地仓库 / 时效 / 运费门槛 / 法定退换窗口"]
     end
 
-    subgraph MCPService [Ticket MCP 微服务 (ticket_server.py)]
+    subgraph MCPService ["Ticket MCP 微服务 (ticket_server.py)"]
         TOOLS["标准化 MCP stdio 接口<br/>create_ticket / get_ticket / list_user_tickets<br/>admin_list_tickets / admin_update_ticket"]
-        DB[(SQLite tickets.db<br/>(shop_id, platform, user_id, request_id) 复合索引)]
+        DB[("SQLite tickets.db<br/>shop_id, platform, user_id, request_id 复合索引")]
     end
 
     S1 --> CH
