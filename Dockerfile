@@ -13,11 +13,12 @@ RUN pip install -r requirements-docker.txt \
     && mkdir -p /runtime /app/workspace/memory /app/workspace/knowledge \
     && chown -R bot:bot /runtime /app /home/bot
 
-COPY --chown=bot:bot customer_gateway.py ./
+COPY --chown=bot:bot customer_gateway.py shop_registry.py shops.json ./
 COPY --chown=bot:bot mcp_servers/ ./mcp_servers/
 COPY --chown=bot:bot deploy/ ./deploy/
 COPY --chown=bot:bot workspace/AGENTS.md ./workspace/AGENTS.md
 COPY --chown=bot:bot workspace/skills/ ./workspace/skills/
+COPY --chown=bot:bot workspace/knowledge/ ./workspace/knowledge/
 
 USER bot
 EXPOSE 18790
