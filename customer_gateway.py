@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import sys
 
+from shop_registry import get_shop_for_channel, list_shops
+
 SUPPORTED_CHANNELS = {'qq', 'telegram', 'feishu', 'dingtalk', 'discord', 'weixin', 'wecom'}
 ADMIN_TOOLS = {'admin_list_tickets', 'admin_get_ticket', 'admin_update_ticket'}
 TICKET_TOOLS = {'create_ticket', 'get_ticket', 'list_user_tickets', 'add_ticket_comment', 'get_ticket_access_context'}
@@ -31,9 +33,11 @@ def install_ticket_identity_binding() -> None:
             self._bind_ticket_sender = server_name == 'ticket_server' and tool_def.name in TICKET_TOOLS
             if self._bind_ticket_sender or self._admin_ticket_tool:
                 self._parameters = deepcopy(self._parameters)
-                hidden = {'platform', 'user_id', 'operator_id'}
-                if tool_def.name == 'create_ticket':
-                    hidden.add('request_id')
+                hidden = {'operator_id'}
+                if self._bind_ticket_sender:
+                    hidden.update({'platform', 'user_id', 'shop_id'})
+                    if tool_def.name == 'create_ticket':
+                        hidden.add('request_id')
                 for key in hidden:
                     self._parameters.get('properties', {}).pop(key, None)
                 self._parameters['required'] = [
@@ -55,23 +59,45 @@ def install_ticket_identity_binding() -> None:
             private = context.metadata.get('chat_type') == 'p2p' or (
                 'chat_type' not in context.metadata and context.chat_id == sender_id)
             is_admin = platform == 'feishu' and sender_id in admins and private
+
+            shop = get_shop_for_channel(context.channel) if not is_admin else None
+
             if self._original_name == 'get_ticket_access_context':
-                return json.dumps({'success': True, 'role': 'admin' if is_admin else 'customer',
-                    'scope': 'all_platforms' if is_admin else 'own_tickets'})
+                if is_admin:
+                    return json.dumps({
+                        'success': True,
+                        'role': 'admin',
+                        'scope': 'all_platforms',
+                        'shops': list_shops(),
+                    })
+                return json.dumps({
+                    'success': True,
+                    'role': 'customer',
+                    'scope': 'own_tickets',
+                    'shop_id': shop['shop_id'],
+                    'shop_name': shop['name'],
+                    'region': shop.get('region', ''),
+                    'currency': shop.get('currency', 'USD'),
+                    'warehouse': shop.get('warehouse', ''),
+                    'return_window_days': shop.get('return_window_days', 30),
+                    'faq_files': shop.get('faq_files', []),
+                })
+
             if self._admin_ticket_tool:
                 if not is_admin:
                     return ToolResult.error('FORBIDDEN: 当前无法直接办理此操作。可以协助整理问题，并在您同意后提交人工跟进。')
                 if self._original_name == 'admin_update_ticket':
                     arguments['operator_id'] = sender_id
                 return await super().execute(**arguments)
+
             arguments['platform'] = platform
             arguments['user_id'] = sender_id
+            arguments['shop_id'] = shop['shop_id']
             if self._original_name == 'create_ticket':
                 event_id = context.message_id or context.turn_id
                 if not event_id:
                     return ToolResult.error('REQUEST_CONTEXT_REQUIRED: 当前消息缺少建单幂等标识。')
-                # Re-delivery of the same platform message reuses the same key.
-                material = f'{context.channel}\0{sender_id}\0{event_id}'.encode()
+                material = f'{shop["shop_id"]}\0{context.channel}\0{sender_id}\0{event_id}'.encode()
                 arguments['request_id'] = hashlib.sha256(material).hexdigest()
             return await super().execute(**arguments)
 
