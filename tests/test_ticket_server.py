@@ -152,6 +152,43 @@ class StoreTests(unittest.TestCase):
             capture_output=True,text=True)
         self.assertNotEqual(missing.returncode,0)
 
+    def test_shop_tenant_isolation_and_admin_filter(self):
+        west = self.store.create_ticket(**create_arguments(shop_id='tt-us-west', request_id='req-west'))['ticket']
+        uk = self.store.create_ticket(**create_arguments(shop_id='tt-uk', request_id='req-uk'))['ticket']
+
+        # Customer isolation
+        west_list = self.store.list_tickets(user_id='test-user', platform='telegram', shop_id='tt-us-west')
+        self.assertEqual(west_list['total'], 1)
+        self.assertEqual(west_list['tickets'][0]['ticket_id'], west['ticket_id'])
+
+        uk_list = self.store.list_tickets(user_id='test-user', platform='telegram', shop_id='tt-uk')
+        self.assertEqual(uk_list['total'], 1)
+        self.assertEqual(uk_list['tickets'][0]['ticket_id'], uk['ticket_id'])
+
+        # Cross-shop access denied
+        with self.assertRaises(TicketError):
+            self.store.get_ticket(uk['ticket_id'], 'test-user', 'telegram', shop_id='tt-us-west')
+
+        # Admin multi-shop listing
+        admin_all = self.store.list_tickets()
+        self.assertEqual(admin_all['total'], 2)
+
+        admin_west = self.store.list_tickets(shop_id='tt-us-west')
+        self.assertEqual(admin_west['total'], 1)
+        self.assertEqual(admin_west['tickets'][0]['ticket_id'], west['ticket_id'])
+
+        admin_uk = self.store.list_tickets(shop_id='tt-uk')
+        self.assertEqual(admin_uk['total'], 1)
+        self.assertEqual(admin_uk['tickets'][0]['ticket_id'], uk['ticket_id'])
+
+    def test_idempotency_scoped_by_shop(self):
+        # Same user and request_id across two distinct shops should produce two distinct tickets
+        t1 = self.store.create_ticket(**create_arguments(shop_id='tt-us-west', request_id='shared-req'))
+        t2 = self.store.create_ticket(**create_arguments(shop_id='tt-uk', request_id='shared-req'))
+        self.assertTrue(t1['created'])
+        self.assertTrue(t2['created'])
+        self.assertNotEqual(t1['ticket']['ticket_id'], t2['ticket']['ticket_id'])
+
 
 class ProtocolTests(unittest.IsolatedAsyncioTestCase):
     async def test_real_stdio_client_and_validation(self):
