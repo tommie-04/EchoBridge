@@ -6,9 +6,18 @@ import os
 from pathlib import Path
 import sys
 
+# Auto-fallback to nanobot python environment if running under default system python without FastAPI
+try:
+    import fastapi
+    import uvicorn
+except ImportError:
+    candidate = Path.home() / ".local/share/uv/tools/nanobot-ai/bin/python"
+    if candidate.exists() and sys.executable != str(candidate):
+        os.execv(str(candidate), [str(candidate), *sys.argv])
+    raise
+
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-import uvicorn
 
 from api_service import app
 
@@ -18,8 +27,8 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-@app.get("/")
-@app.get("/dashboard")
+@app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/dashboard", methods=["GET", "HEAD"])
 async def serve_dashboard():
     index_file = STATIC_DIR / "index.html"
     if not index_file.exists():
