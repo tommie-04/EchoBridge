@@ -31,12 +31,31 @@ class ContainerInitializationTests(unittest.TestCase):
             config = Path(directory) / 'runtime/config.json'
             prepare_runtime(config, template)
             saved = json.loads(config.read_text())
-            saved['channels']['weixin']['token'] = 'test-login-state'
-            saved['channels']['qq']['enabled'] = False
+            saved['channels']['feishu']['appSecret'] = 'test-login-state'
+            saved['channels']['feishu']['streaming'] = False
             config.write_text(json.dumps(saved))
             prepare_runtime(config, template)
             self.assertEqual(json.loads(config.read_text()), saved)
             self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+
+    def test_existing_instance_migrates_to_administrator_only(self):
+        template = Path(__file__).resolve().parents[1] / 'deploy/config.docker.json'
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / 'config.json'
+            saved = json.loads(template.read_text())
+            login = Path(directory) / 'retired-login'
+            login.mkdir()
+            (login / 'account.json').write_text('{}')
+            saved['channels']['retired_channel'] = {'enabled': True, 'token': 'retired', 'stateDir': str(login)}
+            saved['channels']['feishu']['appSecret'] = 'keep-admin-credential'
+            saved['tools']['mcpServers'] = {'retired_server': {'command': 'old'}}
+            config.write_text(json.dumps(saved))
+            prepare_runtime(config, template)
+            migrated = json.loads(config.read_text())
+            self.assertNotIn('retired_channel', migrated['channels'])
+            self.assertFalse(login.exists())
+            self.assertEqual(migrated['channels']['feishu']['appSecret'], 'keep-admin-credential')
+            self.assertEqual(set(migrated['tools']['mcpServers']), {'fulfillment_server'})
 
     def test_directory_at_config_path_fails_instead_of_starting_empty_instance(self):
         with tempfile.TemporaryDirectory() as directory:
