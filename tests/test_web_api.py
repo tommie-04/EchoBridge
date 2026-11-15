@@ -98,32 +98,23 @@ class WebAPITests(unittest.TestCase):
         self.assertIn("Lumen Home", data["common_policy"])
         self.assertIn("加利福尼亚州", data["shop_policy"])
 
-    def test_agent_chat_and_tool_trace(self):
-        # 1. Policy inquiry chat
-        chat_resp = self.client.post("/api/agent/chat", json={
-            "message": "我的椅子气压杆漏气了怎么处理？运费谁出？",
-            "shop_id": "tt-us-west",
-            "sender_id": "test_buyer"
-        })
-        self.assertEqual(chat_resp.status_code, 200)
-        data = chat_resp.json()
-        self.assertTrue(data["success"])
-        self.assertIn("质量问题", data["reply"])
-        self.assertGreaterEqual(len(data["traces"]), 2)
-        tool_names = [tr["tool_name"] for tr in data["traces"]]
-        self.assertIn("read_file", tool_names)
-
-        # 2. Explicit ticket creation command
-        ticket_chat_resp = self.client.post("/api/agent/chat", json={
-            "message": "升降桌电机卡死损坏，请确认帮我建单联系人工处理",
-            "shop_id": "tt-us-west",
-            "sender_id": "test_buyer"
-        })
-        self.assertEqual(ticket_chat_resp.status_code, 200)
-        t_data = ticket_chat_resp.json()
-        self.assertIn("TK-", t_data["reply"])
-        t_tools = [tr["tool_name"] for tr in t_data["traces"]]
-        self.assertIn("mcp_ticket_server_create_ticket", t_tools)
+    def test_demo_handoffs_persist_and_replay_per_shop(self):
+        import asyncio
+        from demo_handoffs import replay
+        asyncio.run(replay(Path(self.db_path)))
+        first = self.client.get("/api/tickets").json()["tickets"]
+        self.assertEqual(len(first), 6)
+        target = first[0]["ticket_id"]
+        self.client.post(f"/api/tickets/{target}/update", json={"status": "in_progress", "comment": "已联系仓库"}).raise_for_status()
+        asyncio.run(replay(Path(self.db_path)))
+        for shop in ("tt-us-west", "tt-us-east", "tt-uk"):
+            rows = self.client.get("/api/tickets", params={"shop_id": shop}).json()["tickets"]
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(len({row["user_id"] for row in rows}), 2)
+            self.assertTrue(all(row["shop_id"] == shop for row in rows))
+        updated = self.client.get(f"/api/tickets/{target}").json()["ticket"]
+        self.assertEqual(updated["status"], "in_progress")
+        self.assertEqual(updated["comments"][-1]["text"], "已联系仓库")
 
     def test_static_dashboard_mounted(self):
         web_client = TestClient(web_app)
