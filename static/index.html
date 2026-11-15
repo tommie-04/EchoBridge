@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EchoBridge - 出海电商（TikTok 多店铺）智能售后与 Agent 观测中台</title>
+  <title>EchoBridge - 出海电商（TikTok 多店铺）售后管理中台</title>
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/static/tailwind-3.4.17.js"></script>
   <!-- Vue 3 -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="/static/vue.global.prod.js"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -32,7 +32,7 @@
               <span class="font-bold text-xl tracking-tight text-slate-900">EchoBridge</span>
               <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">v2.0 Pro</span>
             </div>
-            <p class="text-xs text-slate-500">TikTok 多店铺智能售后与 Agent 链路观测中台</p>
+            <p class="text-xs text-slate-500">TikTok 多店铺智能售后与 人工工单管理中台</p>
           </div>
         </div>
 
@@ -50,7 +50,7 @@
             :class="activeTab === 'sandbox' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
             class="px-3.5 py-2 rounded-lg text-sm flex items-center space-x-2 transition-all">
             <i class="fa-solid fa-robot"></i>
-            <span>AI 客服与链路观测</span>
+            <span>Agent 工单交接</span>
           </button>
           <button 
             @click="activeTab = 'knowledge'"
@@ -59,10 +59,12 @@
             <i class="fa-solid fa-book-open"></i>
             <span>双文件政策探索</span>
           </button>
-          <a href="/docs" target="_blank" class="px-3 py-2 rounded-lg text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-1 transition-all">
-            <i class="fa-solid fa-code text-xs"></i>
-            <span>API 文档</span>
-          </a>
+          <button
+            @click="activeTab = 'fulfillment'"
+            :class="activeTab === 'fulfillment' ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+            class="px-3.5 py-2 rounded-lg text-sm transition-all">
+            面单打印
+          </button>
         </nav>
       </div>
     </header>
@@ -106,7 +108,7 @@
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
             <div>
               <p class="text-xs text-slate-500 font-medium">总工单数</p>
-              <p class="text-2xl font-bold text-slate-900 mt-1">{{ tickets.length }}</p>
+              <p class="text-2xl font-bold text-slate-900 mt-1">{{ shopTickets.length }}</p>
             </div>
             <div class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
               <i class="fa-solid fa-layer-group"></i>
@@ -223,13 +225,13 @@
           <div>
             <h1 class="text-xl font-bold text-slate-900 flex items-center space-x-2">
               <i class="fa-solid fa-microchip text-indigo-600"></i>
-              <span>AI 客服实时对话与全链路观测沙箱</span>
+              <span>Agent 工单交接</span>
             </h1>
-            <p class="text-xs text-slate-500 mt-0.5">模拟海外客户在指定 TikTok 店铺进线咨询，观测 Agent 意图识别、双文件政策加载及工具调用链</p>
+            <p class="text-xs text-slate-500 mt-0.5">查看 Agent 整理的转人工诉求，回复客户可见的处理意见。</p>
           </div>
           <!-- Shop Context Switcher for Chat -->
           <div class="flex items-center space-x-2">
-            <span class="text-xs text-slate-500 font-medium">当前进线店铺:</span>
+            <span class="text-xs text-slate-500 font-medium">选择店铺:</span>
             <select v-model="chatShopId" class="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-indigo-700 shadow-2xs focus:ring-1 focus:ring-indigo-500">
               <option v-for="s in shops" :key="s.shop_id" :value="s.shop_id">
                 {{ s.name }} ({{ s.region }})
@@ -244,35 +246,24 @@
           <!-- Left: Session List (3 cols) -->
           <div class="lg:col-span-3 bg-white rounded-xl border border-slate-200 p-3 flex flex-col h-full shadow-xs">
             <div class="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
-              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">测试用例 / 会话流</span>
-              <button @click="resetChat" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded flex items-center space-x-1 transition">
-                <i class="fa-solid fa-plus text-2xs"></i>
-                <span>新会话</span>
-              </button>
-            </div>
+              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">人工交接工单</span></div>
             
             <div class="space-y-2 overflow-y-auto flex-1 pr-1">
               <div 
-                v-for="(scenario, idx) in demoScenarios" 
-                :key="idx"
-                @click="loadScenario(scenario)"
+                v-for="t in inbox"
+                :key="t.ticket_id"
+                @click="active=t.ticket_id"
                 class="p-2.5 rounded-lg border text-left cursor-pointer transition"
-                :class="currentScenarioIdx === idx ? 'border-indigo-500 bg-indigo-50/50 shadow-2xs' : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'">
+                :class="active === t.ticket_id ? 'border-indigo-500 bg-indigo-50/50 shadow-2xs' : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-semibold text-slate-800">{{ scenario.title }}</span>
-                  <span class="text-2xs px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">{{ scenario.shop_id }}</span>
+                  <span class="text-xs font-semibold text-slate-800">{{ t.title }}</span>
+                  <span class="text-2xs px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-mono">{{ formatStatus(t.status) }}</span>
                 </div>
-                <p class="text-2xs text-slate-500 mt-1 line-clamp-2">{{ scenario.prompt }}</p>
+                <p class="text-2xs text-slate-500 mt-1 line-clamp-2">{{ t.description }}</p>
               </div>
-            </div>
-
-            <!-- Current Session Info Card -->
-            <div class="mt-auto pt-3 border-t border-slate-100 text-2xs text-slate-500 space-y-1">
-              <div><span class="font-semibold text-slate-700">会话 ID:</span> <span class="font-mono">{{ chatSessionId }}</span></div>
-              <div><span class="font-semibold text-slate-700">租户隔离:</span> 物理绑定当前店铺</div>
-            </div>
           </div>
 
+          </div>
           <!-- Center/Right: Interactive Chat & Execution Trace (9 cols) -->
           <div class="lg:col-span-9 bg-white rounded-xl border border-slate-200 flex flex-col h-full shadow-xs overflow-hidden">
             
@@ -286,7 +277,7 @@
                     {{ msg.content }}
                   </div>
                   <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs shrink-0 font-bold">
-                    客
+                    管
                   </div>
                 </div>
 
@@ -297,36 +288,6 @@
                   </div>
                   <div class="space-y-2 max-w-2xl w-full">
                     
-                    <!-- Observability Tool Trace Card (Like user image) -->
-                    <div v-if="msg.traces && msg.traces.length > 0" class="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 shadow-2xs">
-                      <div class="flex items-center justify-between text-xs font-semibold text-indigo-900 pb-1.5 border-b border-indigo-100/60 mb-2">
-                        <span class="flex items-center space-x-1.5">
-                          <i class="fa-solid fa-route text-indigo-600"></i>
-                          <span>Agent 决策思考与工具执行调用链 (Tool Execution Trace)</span>
-                        </span>
-                        <span class="text-2xs text-slate-500 font-mono">总耗时: {{ msg.total_latency_ms || 28 }}ms</span>
-                      </div>
-                      
-                      <!-- Step by step Trace Items -->
-                      <div class="space-y-2">
-                        <div v-for="(tr, stepIdx) in msg.traces" :key="stepIdx" class="bg-white rounded-lg border border-indigo-100/80 p-2.5 text-xs shadow-2xs">
-                          <div class="flex items-center justify-between">
-                            <span class="font-mono font-bold text-indigo-700 flex items-center space-x-1.5">
-                              <span class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-800 text-2xs flex items-center justify-center">{{ tr.step }}</span>
-                              <span>{{ tr.tool_name }}</span>
-                            </span>
-                            <span class="text-2xs font-mono text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">{{ tr.duration_ms }} ms</span>
-                          </div>
-                          <div class="mt-1 text-2xs text-slate-500 font-mono bg-slate-50 p-1.5 rounded">
-                            入参: {{ JSON.stringify(tr.arguments) }}
-                          </div>
-                          <div class="mt-1 text-xs text-slate-700 font-medium">
-                            {{ tr.result_preview }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                     <!-- Final Answer Bubble -->
                     <div class="bg-slate-100/90 text-slate-900 text-sm rounded-2xl rounded-tl-xs px-4 py-3 leading-relaxed whitespace-pre-wrap shadow-2xs border border-slate-200/60">
                       {{ msg.content }}
@@ -335,19 +296,15 @@
                 </div>
 
               </div>
-
-              <!-- Typing / Streaming Placeholder -->
-              <div v-if="isGenerating" class="flex items-center space-x-2 text-slate-500 text-xs italic">
-                <i class="fa-solid fa-circle-notch fa-spin text-indigo-600"></i>
-                <span>Agent 正在根据 {{ chatShopId }} 政策与双文件路由进行推理...</span>
-              </div>
+              <p v-if="!current" class="text-sm text-slate-500">本店暂无转人工工单。</p>
+              <p v-if="error" role="alert" class="text-sm text-red-600">{{error}}</p>
             </div>
 
             <!-- Bottom Prompt Input Area -->
             <div class="p-3 bg-slate-50 border-t border-slate-200">
-              <!-- Quick Prompt Pills -->
+              <!-- Common staff replies -->
               <div class="flex items-center space-x-1.5 overflow-x-auto pb-2">
-                <span class="text-2xs text-slate-400 shrink-0 font-medium">快速体验:</span>
+                <span class="text-2xs text-slate-400 shrink-0 font-medium">处理意见:</span>
                 <button 
                   v-for="qp in quickPrompts" 
                   :key="qp"
@@ -362,11 +319,11 @@
                   type="text" 
                   v-model="inputMessage" 
                   @keyup.enter="sendMessage"
-                  placeholder="输入客户售后问题（例如：我买的工学椅气压杆漏气了怎么退换？或要求人工建单）..." 
+                  placeholder="输入本单处理意见（客户可见）…"
                   class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shadow-2xs">
                 <button 
                   @click="sendMessage" 
-                  :disabled="!inputMessage.trim() || isGenerating"
+                  :disabled="!current || !inputMessage.trim() || isGenerating"
                   class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-xl text-sm flex items-center space-x-1.5 transition shadow-sm">
                   <span>发送</span>
                   <i class="fa-solid fa-paper-plane text-xs"></i>
@@ -425,6 +382,72 @@
             <pre class="flex-1 overflow-y-auto text-xs text-slate-700 font-mono whitespace-pre-wrap bg-slate-50 p-4 rounded-lg leading-relaxed">{{ knowledgeShop }}</pre>
           </div>
         </div>
+      </section>
+
+      <!-- Simulated fulfillment workflow -->
+      <section v-if="activeTab === 'fulfillment'" class="space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900">跨店铺面单打印</h1>
+          <p class="text-sm text-slate-500 mt-1">20 家美国店铺 · 洛杉矶共享仓库 · TikTok Shipping / USPS</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-sm">
+          模拟订单与面单，仅用于验证分类和排版。PDF 无有效邮资，下载后可预览；本页不会向打印机发送任务。
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-xs">
+          <div class="flex flex-wrap items-end gap-4">
+            <label class="text-sm text-slate-600">发货日期（洛杉矶）
+              <input type="date" v-model="shippingDate" :disabled="shippingBusy" required class="block mt-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-800">
+            </label>
+            <div class="flex flex-wrap gap-2">
+              <button @click="selectShippingShops('all')" :disabled="shippingBusy" class="px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-indigo-50">全部店铺</button>
+              <button @click="selectShippingShops('first-two')" :disabled="shippingBusy" class="px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-indigo-50">前两家示例店</button>
+              <button @click="shippingSelection = []" :disabled="shippingBusy" class="px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50">清空选择</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <label v-for="s in shippingShops" :key="s.shop_id" class="flex gap-2 items-center border rounded-lg px-3 py-2 text-sm cursor-pointer" :class="shippingSelection.includes(s.shop_id) ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : 'border-slate-200 text-slate-600'">
+              <input type="checkbox" v-model="shippingSelection" :value="s.shop_id" :disabled="shippingBusy" class="accent-indigo-600">
+              {{ s.name }}
+            </label>
+          </div>
+          <div class="flex flex-wrap gap-3 items-center justify-between">
+            <span class="text-sm text-slate-500">已选 {{ shippingSelection.length }} 家店铺</span>
+            <button @click="prepareShippingBatch" :disabled="shippingBusy || !shippingDate || !shippingSelection.length" class="bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium">
+              {{ shippingBusy ? '正在整理订单…' : '生成分类打印批次' }}
+            </button>
+          </div>
+          <p v-if="shippingError" role="alert" class="text-sm text-rose-700">{{ shippingError }}</p>
+          <button v-if="!shippingShops.length && shippingError" @click="fetchShippingShops" class="text-sm text-indigo-700 underline">重新加载店铺</button>
+        </div>
+        <template v-if="shippingBatch">
+          <div v-if="shippingSelectionChanged" class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm text-indigo-800">筛选条件已改变，下面仍为上次生成的批次。请重新生成以更新结果。</div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white border border-slate-200 rounded-xl p-4"><small class="text-slate-500">包裹 / 面单页数</small><p class="text-2xl font-semibold text-slate-900">{{ shippingBatch.package_count }}</p></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4"><small class="text-slate-500">商品总件数</small><p class="text-2xl font-semibold text-slate-900">{{ shippingBatch.unit_count }}</p></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4"><small class="text-slate-500">打印分类</small><p class="text-2xl font-semibold text-slate-900">{{ shippingBatch.groups.length }}</p></div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4"><small class="text-slate-500">排除包裹</small><p class="text-2xl font-semibold text-slate-900">{{ shippingExcluded.length }}</p></div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
+              <div><h2 class="font-semibold text-slate-900">{{ shippingPreparedDate }} · 分类结果</h2><p class="text-xs text-slate-500 mt-1">每个包裹只生成一页面单，混合商品单独成组；底部说明为该包裹的 SKU 与数量。</p></div>
+              <a v-if="shippingBatch.package_count" :href="shippingPdfUrl()" target="_blank" rel="noopener" class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm">预览 / 下载全部 PDF</a>
+            </div>
+            <div class="overflow-x-auto"><table class="w-full text-sm text-left">
+              <thead class="bg-slate-50 text-slate-500"><tr><th class="px-4 py-3">商品分类</th><th class="px-4 py-3">面单页数</th><th class="px-4 py-3">商品件数</th><th class="px-4 py-3">拣货汇总</th><th class="px-4 py-3">打印文件</th></tr></thead>
+              <tbody class="divide-y divide-slate-100"><tr v-for="group in shippingBatch.groups" :key="group.group_id">
+                <td class="px-4 py-3 font-semibold text-indigo-800">{{ group.group_id === 'mixed' || group.sku === 'mixed' ? '混合商品' : group.sku }}</td>
+                <td class="px-4 py-3">{{ group.package_count }}</td><td class="px-4 py-3">{{ group.unit_count }}</td>
+                <td class="px-4 py-3"><span v-for="item in group.items" :key="item.sku" class="block">{{ item.sku }} × {{ item.quantity }}</span></td>
+                <td class="px-4 py-3"><a :href="shippingPdfUrl(group.group_id)" target="_blank" rel="noopener" class="text-indigo-700 hover:underline">预览 / 下载 PDF</a></td>
+              </tr></tbody>
+            </table></div>
+            <p v-if="!shippingBatch.package_count" class="p-4 text-sm text-slate-500">本批次没有可下载的面单。</p>
+          </div>
+          <details v-if="shippingExcluded.length" class="bg-white border border-slate-200 rounded-xl p-4 text-sm">
+            <summary class="cursor-pointer font-medium text-slate-700">查看已排除的 {{ shippingExcluded.length }} 个包裹</summary>
+            <ul class="mt-3 space-y-2 text-slate-500"><li v-for="(item, index) in shippingExcluded" :key="index">{{ item.package_id || item.order_id || '包裹' }} · {{ formatShippingExclusion(item.reason || item.status) }}</li></ul>
+          </details>
+        </template>
       </section>
 
     </main>
@@ -503,6 +526,69 @@
     createApp({
       setup() {
         const activeTab = ref('sandbox');
+
+        // Deterministic mock TikTok fulfillment; no printer dispatch is exposed here.
+        const shippingShops = ref([]);
+        const shippingSelection = ref([]);
+        const shippingDate = ref(new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(new Date()));
+        const shippingBatch = ref(null);
+        const shippingBusy = ref(false);
+        const shippingError = ref('');
+        const shippingPreparedDate = ref('');
+        const shippingPreparedShops = ref([]);
+        const shippingExcluded = computed(() => {
+          const excluded = shippingBatch.value?.excluded;
+          return Array.isArray(excluded) ? excluded : [];
+        });
+        const shippingSelectionChanged = computed(() => {
+          return shippingDate.value !== shippingPreparedDate.value ||
+            [...shippingSelection.value].sort().join(',') !== [...shippingPreparedShops.value].sort().join(',');
+        });
+        async function fetchShippingShops() {
+          shippingError.value = '';
+          try {
+            const response = await fetch('/api/simulation/shops');
+            if (!response.ok) throw Error('店铺加载失败，请重试。');
+            const result = await response.json();
+            shippingShops.value = result.shops;
+            shippingSelection.value = result.shops.map(shop => shop.shop_id);
+          } catch (error) { shippingError.value = error.message || '店铺加载失败，请重试。'; }
+        }
+        function selectShippingShops(mode) {
+          const available = mode === 'first-two' ? shippingShops.value.slice(0, 2) : shippingShops.value;
+          shippingSelection.value = available.map(shop => shop.shop_id);
+        }
+        async function prepareShippingBatch() {
+          if (shippingBusy.value || !shippingDate.value || !shippingSelection.value.length) return;
+          shippingBusy.value = true;
+          shippingError.value = '';
+          const request = { shop_ids: [...shippingSelection.value], ship_date: shippingDate.value };
+          try {
+            const response = await fetch('/api/simulation/batches', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request)
+            });
+            const result = await response.json();
+            if (!response.ok) throw Error(typeof result.detail === 'string' ? result.detail : '生成失败，请核对日期和店铺后重试。');
+            shippingBatch.value = result;
+            shippingPreparedDate.value = request.ship_date;
+            shippingPreparedShops.value = request.shop_ids;
+          } catch (error) { shippingError.value = error.message || '生成失败，请重试。'; }
+          finally { shippingBusy.value = false; }
+        }
+        function shippingPdfUrl(groupId) {
+          if (!shippingBatch.value) return '';
+          const base = '/api/simulation/batches/' + encodeURIComponent(shippingBatch.value.batch_id) + '/pdf';
+          return groupId ? base + '?' + new URLSearchParams({ group_id: groupId }) : base;
+        }
+        function formatShippingExclusion(reason) {
+          return { cancelled: '订单已取消', label_pending: '面单尚未生成', not_ready: '尚未满足发货条件' }[reason] || reason || '暂不具备打印条件';
+        }
+        Vue.watch(activeTab, tab => {
+          if (tab === 'fulfillment' && !shippingShops.value.length) fetchShippingShops();
+        });
+
         const shops = ref([]);
         const tickets = ref([]);
         const filterShop = ref('');
@@ -517,49 +603,62 @@
 
         // Chat & Observability Sandbox state
         const chatShopId = ref('tt-us-west');
-        const chatSessionId = ref('sess-' + Math.random().toString(36).substring(2, 9));
-        const inputMessage = ref('');
+
+        const active = ref('');
+        const inbox = ref([]);
+        const drafts = ref({});
         const isGenerating = ref(false);
-        const currentScenarioIdx = ref(0);
-
-        const chatMessages = ref([
-          {
-            role: 'assistant',
-            content: '您好！我是 Lumen Home 出海智能客服专员。我已经挂载美西、美东及英国三家 TikTok 分店的专属政策知识库，请随时提问！',
-            traces: []
-          }
-        ]);
-
-        const quickPrompts = [
-          '椅子气压杆漏气了怎么处理？',
-          '在加利福尼亚下单几天能送到？',
-          '退货运费由谁承担？',
-          '请帮我创建工单申请人工售后'
-        ];
-
-        const demoScenarios = [
-          {
-            title: '用例 1: 美西店破损换新咨询',
-            shop_id: 'tt-us-west',
-            prompt: '你好，我在你们加州店买的 Lumen Ergo 椅子收到后扶手开裂了，你们怎么处理？运费谁出？'
-          },
-          {
-            title: '用例 2: 美东店 2 日达与免运咨询',
-            shop_id: 'tt-us-east',
-            prompt: '我住在纽约，买一个升降桌几天能到？满多少可以免运费？'
-          },
-          {
-            title: '用例 3: 英国店 14 天冷静期退货',
-            shop_id: 'tt-uk',
-            prompt: '我在英国收到货 10 天了觉得颜色不太适合，还能无理由退货吗？需要寄到哪里？'
-          },
-          {
-            title: '用例 4: 确认建单转人工流程',
-            shop_id: 'tt-us-west',
-            prompt: '我的升降桌电机报错 E08 无法升降，我已经拍了视频，请帮我建单联系人工客服！'
-          }
-        ];
-
+        const error = ref('');
+        let sequence = 0;
+        let boardSequence = 0;
+        let knowledgeSequence = 0;
+        const current = computed(() => inbox.value.find(t => t.ticket_id === active.value));
+        const inputMessage = computed({
+          get: () => drafts.value[active.value] || '',
+          set: value => { drafts.value[active.value] = value; }
+        });
+        const chatMessages = computed(() => {
+          const t = current.value;
+          if (!t) return [];
+          return [{role:'assistant', content:t.title + ' · ' + formatStatus(t.status) + '\n' + t.description},
+            ...t.comments.map(c => ({role:c.author==='staff'?'user':'assistant',content:c.text || formatStatus(c.status)}))];
+        });
+        const quickPrompts = ['请补充订单号以便核查。','已联系仓库核对，请等待处理结果。'];
+        async function fetchAllTickets(filters = {}) {
+          const result = [];
+          let offset = 0;
+          let total = 0;
+          do {
+            const query = new URLSearchParams({ ...filters, limit: 100, offset });
+            const response = await fetch('/api/tickets?' + query);
+            if (!response.ok) throw Error('读取工单失败');
+            const data = await response.json();
+            if (!data.success || !Array.isArray(data.tickets) || !Number.isInteger(data.total)) {
+              throw Error('工单列表格式异常');
+            }
+            result.push(...data.tickets);
+            offset += data.tickets.length;
+            total = data.total;
+            if (!data.tickets.length && offset < total) throw Error('工单列表分页中断');
+          } while (offset < total);
+          return result;
+        }
+        async function refreshInbox(){
+          const version = ++sequence;
+          const shop = chatShopId.value;
+          try {
+            const lists = await Promise.all([
+              fetchAllTickets({shop_id: shop, status: 'open'}),
+              fetchAllTickets({shop_id: shop, status: 'in_progress'})
+            ]);
+            if (version !== sequence) return;
+            const unique = new Map(lists.flat().map(ticket => [ticket.ticket_id, ticket]));
+            inbox.value = [...unique.values()].sort((a, b) =>
+              b.created_at.localeCompare(a.created_at) || b.ticket_id.localeCompare(a.ticket_id));
+            if (!current.value) active.value = inbox.value[0]?.ticket_id || '';
+          } catch { if(version === sequence) error.value='读取工单失败，请刷新重试。'; }
+        }
+        Vue.watch(chatShopId, () => {inbox.value=[]; active.value='';error.value='';refreshInbox()},{flush:'sync'});
         const fetchShops = async () => {
           try {
             const res = await fetch('/api/shops');
@@ -573,23 +672,21 @@
         };
 
         const fetchTickets = async () => {
+          const version = ++boardSequence;
           try {
-            const url = filterShop.value ? `/api/tickets?shop_id=${filterShop.value}` : '/api/tickets';
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.success) {
-              tickets.value = data.tickets || [];
-            }
+            const rows = await fetchAllTickets();
+            if (version === boardSequence) tickets.value = rows;
           } catch (e) {
             console.error('Fetch tickets error', e);
           }
         };
 
         const fetchKnowledge = async (sid) => {
+          const version = ++knowledgeSequence;
           try {
             const res = await fetch(`/api/knowledge/${sid}`);
             const data = await res.json();
-            if (data.success) {
+            if (data.success && version === knowledgeSequence) {
               knowledgeCommon.value = data.common_policy;
               knowledgeShop.value = data.shop_policy;
             }
@@ -598,16 +695,14 @@
           }
         };
 
-        const filteredTickets = computed(() => {
-          return tickets.value.filter(t => {
-            const matchShop = !filterShop.value || t.shop_id === filterShop.value;
-            const matchStatus = !filterStatus.value || t.status === filterStatus.value;
-            return matchShop && matchStatus;
-          });
-        });
+        const shopTickets = computed(() => tickets.value.filter(t =>
+          !filterShop.value || t.shop_id === filterShop.value));
+
+        const filteredTickets = computed(() => shopTickets.value.filter(t =>
+          !filterStatus.value || t.status === filterStatus.value));
 
         const countStatus = (st) => {
-          return tickets.value.filter(t => t.status === st).length;
+          return shopTickets.value.filter(t => t.status === st).length;
         };
 
         const formatShop = (sid) => {
@@ -678,6 +773,7 @@
             const data = await res.json();
             if (data.success) {
               selectedTicket.value = data.ticket;
+              refreshInbox();
               fetchTickets();
             }
           } catch (e) {
@@ -685,74 +781,30 @@
           }
         };
 
-        const loadScenario = (sc) => {
-          chatShopId.value = sc.shop_id;
-          inputMessage.value = sc.prompt;
-        };
 
-        const resetChat = () => {
-          chatSessionId.value = 'sess-' + Math.random().toString(36).substring(2, 9);
-          chatMessages.value = [
-            {
-              role: 'assistant',
-              content: `已开启新对话！当前进线 TikTok 店铺已绑定为【${formatShop(chatShopId.value)}】。`,
-              traces: []
-            }
-          ];
-        };
-
-        const sendMessage = async () => {
-          const text = inputMessage.value.trim();
-          if (!text || isGenerating.value) return;
-
-          chatMessages.value.push({ role: 'user', content: text });
-          inputMessage.value = '';
-          isGenerating.value = true;
-
-          // Scroll to bottom
-          setTimeout(() => {
-            const el = document.getElementById('chat-feed');
-            if (el) el.scrollTop = el.scrollHeight;
-          }, 50);
-
+        async function sendMessage(){
+          const id = active.value, comment = inputMessage.value.trim();
+          if (!current.value || !comment || isGenerating.value) return;
+          isGenerating.value=true;
+          error.value='';
           try {
-            const res = await fetch('/api/agent/chat', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message: text,
-                shop_id: chatShopId.value,
-                session_id: chatSessionId.value,
-                sender_id: 'web_visitor_01'
-              })
+            const response=await fetch('/api/tickets/'+encodeURIComponent(id)+'/update',{
+              method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({comment})
             });
-            const data = await res.json();
-            if (data.success) {
-              chatMessages.value.push({
-                role: 'assistant',
-                content: data.reply,
-                traces: data.traces,
-                total_latency_ms: data.total_latency_ms
-              });
-              // Refresh tickets if ticket was created
-              fetchTickets();
-            }
-          } catch (e) {
-            chatMessages.value.push({
-              role: 'assistant',
-              content: '请求出错，请检查后台连接：' + e,
-              traces: []
-            });
-          } finally {
-            isGenerating.value = false;
-            setTimeout(() => {
-              const el = document.getElementById('chat-feed');
-              if (el) el.scrollTop = el.scrollHeight;
-            }, 100);
-          }
-        };
-
+            if (!response.ok) throw Error();
+            if(drafts.value[id]?.trim()===comment) drafts.value[id]='';
+            await Promise.all([refreshInbox(),fetchTickets()]);
+            await Vue.nextTick();
+            const feed=document.getElementById('chat-feed');
+            if(feed) feed.scrollTop=feed.scrollHeight;
+          } catch { error.value='处理意见未确认保存，请刷新核对。'; }
+          finally { isGenerating.value=false; }
+        }
+        let timer;
+        Vue.onBeforeUnmount(()=>clearInterval(timer));
         onMounted(() => {
+          refreshInbox();
+          timer=setInterval(()=>{if(activeTab.value==='sandbox' && !document.hidden)refreshInbox()},10000);
           fetchShops();
           fetchTickets();
           fetchKnowledge(activePolicyShop.value);
@@ -760,10 +812,15 @@
 
         return {
           activeTab,
+          shippingShops, shippingSelection, shippingDate, shippingBatch, shippingBusy,
+          shippingError, shippingPreparedDate, shippingExcluded, shippingSelectionChanged,
+          fetchShippingShops, selectShippingShops, prepareShippingBatch, shippingPdfUrl,
+          formatShippingExclusion,
           shops,
           tickets,
           filterShop,
           filterStatus,
+          shopTickets,
           filteredTickets,
           selectedTicket,
           updateForm,
@@ -771,13 +828,11 @@
           knowledgeCommon,
           knowledgeShop,
           chatShopId,
-          chatSessionId,
+          active,inbox,current,error,
           inputMessage,
           isGenerating,
-          currentScenarioIdx,
           chatMessages,
           quickPrompts,
-          demoScenarios,
           fetchTickets,
           fetchKnowledge,
           countStatus,
@@ -788,8 +843,6 @@
           categoryClass,
           openTicketDrawer,
           submitTicketUpdate,
-          loadScenario,
-          resetChat,
           sendMessage
         };
       }
