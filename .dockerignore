@@ -1,12 +1,13 @@
-# Only source files needed by the image may enter the build context.
+# Only application source and administrator templates enter the image.
 **
 !Dockerfile
 !requirements.txt
 !requirements-docker.txt
 !customer_gateway.py
+!fulfillment_simulator.py
+!fulfillment_service.py
 !mcp_servers/
-!mcp_servers/ticket_server.py
-!mcp_servers/LICENSE.learn-nanobot
+!mcp_servers/fulfillment_server.py
 !deploy/
 !deploy/config.docker.json
 !deploy/entrypoint.py
@@ -14,17 +15,5 @@
 !workspace/
 !workspace/AGENTS.md
 !workspace/skills/
-!workspace/skills/faq/
-!workspace/skills/faq/SKILL.md
-!workspace/skills/ticket/
-!workspace/skills/ticket/SKILL.md
-
-!shop_registry.py
-!shops.json
-!workspace/knowledge/
-!workspace/knowledge/brand/
-!workspace/knowledge/brand/common.md
-!workspace/knowledge/shops/
-!workspace/knowledge/shops/tt-us-east.md
-!workspace/knowledge/shops/tt-us-west.md
-!workspace/knowledge/shops/tt-uk.md
+!workspace/skills/fulfillment/
+!workspace/skills/fulfillment/SKILL.md
