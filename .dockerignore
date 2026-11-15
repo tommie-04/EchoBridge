@@ -18,3 +18,13 @@
 !workspace/skills/faq/SKILL.md
 !workspace/skills/ticket/
 !workspace/skills/ticket/SKILL.md
+
+!shop_registry.py
+!shops.json
+!workspace/knowledge/
+!workspace/knowledge/brand/
+!workspace/knowledge/brand/common.md
+!workspace/knowledge/shops/
+!workspace/knowledge/shops/tt-us-east.md
+!workspace/knowledge/shops/tt-us-west.md
+!workspace/knowledge/shops/tt-uk.md
