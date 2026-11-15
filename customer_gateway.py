@@ -60,7 +60,7 @@ def install_ticket_identity_binding() -> None:
                 'chat_type' not in context.metadata and context.chat_id == sender_id)
             is_admin = platform == 'feishu' and sender_id in admins and private
 
-            shop = get_shop_for_channel(context.channel) if not is_admin else None
+            shop = get_shop_for_channel(context.channel)
 
             if self._original_name == 'get_ticket_access_context':
                 if is_admin:
