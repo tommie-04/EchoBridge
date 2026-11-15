@@ -1,48 +1,21 @@
-# EchoBridge · 多店铺履约与售后工作台
+# EchoBridge · 多店铺履约工作台
 
-面向同一品牌旗下的 20 家美国 TikTok Shop，商品由洛杉矶共享仓发出。EchoBridge 将跨店铺面单整理、客服转人工和售后跟进集中到一个管理工作台。
+面向同一品牌旗下的 20 家美国 TikTok Shop，商品由洛杉矶共享仓发出。系统将跨店订单按仓库 SKU 汇总，生成带商品名称和数量的分类面单文件。管理员可以通过本地 Web 工作台或飞书 Agent 准备和查询批次。
 
-**技术栈**　Python · Nanobot · MCP / FastMCP · FastAPI · Vue 3 · SQLite · ReportLab / pypdf
+**技术栈**　Python · Nanobot · FastMCP · FastAPI · Vue 3 · SQLite · ReportLab / pypdf
 
-## 业务场景与解决的问题
+## 业务场景与痛点
 
-| 日常问题 | 系统处理方式 |
+| 日常问题 | 处理方式 |
 |---|---|
-| 同款商品分散在多个店铺，仓库需要逐店整理发货任务 | 按仓库 SKU 汇总包裹，生成分类打印批次与拣货数量 |
-| 面单缺少仓库需要的商品说明 | 在预留底部区域追加本包裹的商品名称、SKU 和数量 |
-| 多件或混合商品容易漏发，重复取单容易重复生成任务 | 区分商品件数与包裹页数，混合包裹独立分组，保存稳定批次快照 |
-| 客服咨询与人工售后混杂，跨店跟进容易遗漏 | FAQ 处理常规咨询，需要人工时建单，管理员在交接对话或看板中处理 |
+| 同款商品分散在多个店铺，需要逐店整理发货任务 | 按店铺、日期取数，跨店按仓库 SKU 组织批次 |
+| 面单缺少仓库拣货所需的商品说明 | 在预留底部区域追加本包裹的商品名称、SKU 和数量 |
+| 多件或混合商品容易漏发 | 区分包裹页数与商品件数，混合商品独立分组 |
+| 重复操作容易产生不一致的打印材料 | 保存批次快照，相同输入返回同一批次 |
 
-当前面单模块使用 **20 家美国店铺的模拟订单与 USPS 面单**，已实现分类、PDF 合成、下载及批次存储。模拟面单带有醒目标记，无有效邮资。客服渠道通过 Nanobot 接收消息，工单经 MCP 写入 SQLite；工单回放提供原有美西、美东、英国三店的六份示例交接。真实 TikTok Shop API、退货申诉提交和打印机执行尚未接入。
+当前数据源模拟 **20 家美国店铺的 TikTok Shipping / USPS 包裹**，用于验证分类和排版。PDF 标明演示用途，无有效邮资。真实 TikTok API、打印机执行与退货申诉尚未接入。
 
-## 系统架构
-
-```mermaid
-flowchart TD
-    subgraph Entry["交互入口"]
-        C["QQ / 微信 / Telegram 客户"]
-        W["Vue 3 管理工作台"]
-        F["飞书管理员"]
-    end
-    C --> N["Nanobot · Channel / MessageBus / Agent Loop"]
-    F --> N
-    N --> G["Gateway · 身份、店铺与权限校验"]
-    G -->|MCP stdio| M["工单 MCP Server"]
-    M --> T["TicketStore"]
-    W -->|HTTP| A["FastAPI"]
-    A --> T
-    T --> D[("工单 SQLite")]
-    A --> S["模拟履约 · 分组与 PDF 合成"]
-    S --> B[("独立批次 SQLite")]
-    classDef core fill:#eef2ff,stroke:#818cf8,color:#312e81
-    classDef data fill:#ecfdf5,stroke:#34d399,color:#064e3b
-    class N,G,M,A,S core
-    class D,B data
-```
-
-Web 与渠道服务使用同一工单数据库路径时，可以查询同一份处理记录。面单模拟库独立保存批次快照。当前 Web 是本机管理入口，尚未加入员工登录与店铺授权。
-
-## 跨店面单流程
+## 面单处理流程
 
 ```mermaid
 flowchart TD
@@ -57,65 +30,57 @@ flowchart TD
     class B,L,PDF output
 ```
 
-前两家示例店共有 21 个可用包裹，黑色 `pad-blk` 为 5 件、橙色 `pad-org` 为 11 件、银色 `pad-sil` 为 5 件。全部 20 店包含 57 个可用包裹、93 件商品，同时覆盖多件同款与混合商品样本。重复选择同一日期和店铺返回同一批次，下载使用保存的快照。
+前两家示例店共有 21 个可用包裹，`pad-blk` 为 5 件、`pad-org` 为 11 件、`pad-sil` 为 5 件。全部 20 店共有 57 个可用包裹、93 件商品，覆盖多件同款与混合商品样本。批次按洛杉矶日期生成，下载使用已保存快照。
 
-## 客服转人工与管理员处理
+## 两个管理员入口
 
 ```mermaid
 flowchart TD
-    C["客户在平台咨询"] --> A["Agent Loop · 规则、上下文与 LLM"]
-    A -->|政策问题| FAQ["FAQ Skill · 品牌与当前店铺知识"]
-    FAQ --> R["回复原平台"]
-    A -->|客户确认需要人工| SK["工单 Skill · 整理问题"]
-    SK --> G["绑定店铺、发送者和请求标识"]
-    G -->|MCP create_ticket| D[("工单与处理记录")]
-    D -->|返回编号| R
-    W["管理员 · Web 交接对话 / 工单看板"] -->|FastAPI 查询与更新| D
-    F["管理员 · 飞书私聊"] -->|授权的 MCP 管理工具| D
-    C -->|回查进度| Q["按当前店铺与客户身份查询"]
-    Q --> D
-    classDef agent fill:#eef2ff,stroke:#818cf8,color:#312e81
-    class A,FAQ,SK,G agent
+    F["飞书管理员私聊"] --> N["Nanobot · MessageBus / Agent Loop"]
+    N --> G["Gateway · 管理员白名单与私聊校验"]
+    G -->|MCP stdio| M["fulfillment_server · 店铺与批次工具"]
+    W["Vue 3 本地工作台"] -->|HTTP| A["FastAPI"]
+    M --> S["共享履约服务"]
+    A --> S
+    S --> P["模拟数据 · SKU 分组 · PDF 合成"]
+    S --> D[("SQLite 批次快照")]
+    classDef core fill:#eef2ff,stroke:#818cf8,color:#312e81
+    class N,G,M,A,S core
 ```
 
-管理员聊天框接收工单交接摘要，发送的处理意见保存为客户可见备注；看板支持筛选、查看详情和更新状态。客户在原渠道主动回查最新进度。飞书管理员由白名单和私聊上下文校验，客户工具的店铺与身份由 Gateway 注入。
+飞书 Agent 根据管理员请求选择工具，后端通过 `FEISHU_ADMIN_IDS` 白名单与私聊上下文校验调用身份。MCP 提供店铺列表、准备批次和查询批次三个能力。Web 与 MCP 复用同一履约服务，通过 `FULFILLMENT_SIM_DB` 指向相同数据库时可查询同一批次。Web 默认本机访问，当前没有员工登录。
 
-Nanobot 提供模型循环、会话和记忆能力，工单服务提供业务工具。长期记忆适合通用背景与操作偏好，订单归属、状态和处理记录以业务数据库为准。
+Nanobot 提供模型循环、上下文与记忆管理。批次、商品数量和排除原因以服务返回的快照为准；长期记忆仅保存通用操作偏好。
 
 ## 项目目录与职责
 
 ```text
 nanobot-customer-support/
-├── customer_gateway.py          # 渠道 Gateway 入口、可信身份与店铺绑定
-├── shop_registry.py             # 渠道实例与店铺配置解析
-├── shops.json                   # 客服演示店铺、渠道与知识文件映射
-├── api_service.py               # 店铺、工单和知识库 HTTP 接口
-├── web_server.py                # FastAPI / 静态页面启动入口
+├── customer_gateway.py          # 飞书管理员 Gateway 入口与工具权限校验
+├── api_service.py               # FastAPI 应用与履约路由注册
+├── web_server.py                # 本机 Web 与静态页面启动入口
 ├── start_web.sh                 # 本地 Web 启动脚本
-├── fulfillment_simulator.py     # 20 店模拟包裹、SKU 分组、面单 PDF 合成
-├── fulfillment_api.py           # 模拟批次接口与 SQLite 快照存储
-├── demo_handoffs.py             # 通过真实 MCP 回放示例交接
+├── fulfillment_simulator.py     # 20 店模拟包裹、SKU 分组与 PDF 合成
+├── fulfillment_service.py       # Web / MCP 共用的批次服务与快照存储
+├── fulfillment_api.py           # 模拟履约 HTTP 接口与 PDF 下载
 ├── mcp_servers/
-│   └── ticket_server.py          # FastMCP 工具、TicketStore、工单 SQLite 与 CLI
+│   └── fulfillment_server.py    # FastMCP 店铺列表、准备批次和查询工具
 ├── static/
-│   ├── index.html               # Vue 管理看板、管理员对话、面单打印页
+│   ├── index.html               # Vue 面单工作台
 │   ├── vue.global.prod.js       # 本地 Vue 运行库
 │   └── tailwind-3.4.17.js       # 本地样式运行库
 ├── workspace/
-│   ├── AGENTS.md                # 客服规则、输出规范与角色分流
-│   ├── skills/faq/SKILL.md      # 知识查询与人工升级指导
-│   ├── skills/ticket/SKILL.md   # 工单创建、查询与管理员处理指导
-│   └── knowledge/
-│       ├── brand/common.md      # 品牌通用政策
-│       └── shops/               # 客服演示店铺专属政策
-├── config.example.json          # 脱敏的渠道、模型、workspace 与 MCP 模板
-├── .env.example                 # 密钥与管理员变量占位模板
-├── requirements.txt             # Python 基础依赖与 PDF 库
-├── requirements-docker.txt      # 容器渠道依赖
+│   ├── AGENTS.md                # 内部运营规则与执行边界
+│   └── skills/fulfillment/
+│       └── SKILL.md             # 面单批次工具使用指导
+├── config.example.json          # 脱敏的飞书、模型和 MCP 配置模板
+├── .env.example                 # 密钥与飞书管理员变量占位模板
+├── requirements.txt             # Python 与 PDF 依赖
+├── requirements-docker.txt      # 容器飞书依赖
 ├── Dockerfile / docker-compose.yml
 ├── deploy/                      # Gateway 容器初始化与健康检查
-├── tests/                       # 工单、身份、Web、批次与 PDF 回归验证
+├── tests/                       # 权限、批次、API、MCP 与 PDF 验证
 └── README.md
 ```
 
-本地 `.env`、`config.json`、数据库、登录凭据、会话和记忆数据由 Git 忽略规则排除。Docker Compose 当前运行渠道 Gateway，Web 管理服务通过独立入口运行。
+本地配置、密钥、数据库、会话和记忆数据由 Git 忽略规则排除。Docker Compose 当前运行飞书 Gateway，Web 通过独立入口运行。
