@@ -16,7 +16,6 @@ __pycache__/
 /webui/
 /cron/
 /workspace/memory/
-/workspace/knowledge/ikea/
 /data/
 
 /cache/
@@ -29,4 +28,3 @@ __pycache__/
 /workspace/SOUL.md
 /workspace/HEARTBEAT.md
 /workspace/prompts/
-/weixin/
