@@ -16,13 +16,6 @@
     "sendProgress": false,
     "sendToolHints": false,
     "showReasoning": false,
-    "telegram": {
-      "enabled": true,
-      "token": "${TELEGRAM_BOT_TOKEN}",
-      "allowFrom": [],
-      "mode": "polling",
-      "streaming": false
-    },
     "feishu": {
       "enabled": true,
       "appId": "${FEISHU_APP_ID}",
@@ -30,53 +23,24 @@
       "allowFrom": [],
       "groupPolicy": "mention",
       "streaming": false
-    },
-    "qq": {
-      "enabled": false,
-      "appId": "${QQ_APP_ID}",
-      "secret": "${QQ_APP_SECRET}",
-      "allowFrom": [],
-      "msgFormat": "plain",
-      "ackMessage": "",
-      "sendProgress": false,
-      "sendToolHints": false,
-      "showReasoning": false
-    },
-    "weixin": {
-      "enabled": false,
-      "allowFrom": [],
-      "stateDir": "/ABSOLUTE/PATH/TO/PROJECT/weixin",
-      "streaming": false,
-      "sendProgress": false,
-      "sendToolHints": false,
-      "showReasoning": false,
-      "replyProgressMessages": false
     }
   },
   "tools": {
     "mcpServers": {
-      "ticket_server": {
+      "fulfillment_server": {
         "type": "stdio",
         "command": "/ABSOLUTE/PATH/TO/PYTHON",
         "args": [
-          "/ABSOLUTE/PATH/TO/PROJECT/mcp_servers/ticket_server.py",
-          "serve"
+          "/ABSOLUTE/PATH/TO/PROJECT/mcp_servers/fulfillment_server.py"
         ],
         "cwd": "/ABSOLUTE/PATH/TO/PROJECT",
         "env": {
-          "TICKET_DB_PATH": "/ABSOLUTE/PATH/TO/PROJECT/data/tickets.db",
-          "TICKET_ENABLE_ADMIN_TOOLS": "1",
-          "TICKET_TIMEZONE": "${TICKET_TIMEZONE}"
+          "FULFILLMENT_SIM_DB": "/ABSOLUTE/PATH/TO/PROJECT/data/fulfillment-simulation.db"
         },
         "enabledTools": [
-          "create_ticket",
-          "get_ticket",
-          "list_user_tickets",
-          "add_ticket_comment",
-          "get_ticket_access_context",
-          "admin_list_tickets",
-          "admin_get_ticket",
-          "admin_update_ticket"
+          "list_shipping_shops",
+          "prepare_shipping_batch",
+          "get_shipping_batch"
         ]
       }
     }
