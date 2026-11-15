@@ -34,7 +34,6 @@ async def serve_dashboard():
     if not index_file.exists():
         return {
             "message": "EchoBridge Hub Backend is running. Static dashboard is preparing.",
-            "api_docs": "/docs",
             "health": "/api/health",
         }
     return FileResponse(index_file)
@@ -45,18 +44,9 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="Listen host")
     parser.add_argument("--port", type=int, default=8000, help="Listen port")
     parser.add_argument("--reload", action="store_true", help="Enable auto reload")
-    parser.add_argument("--demo", action="store_true", help="Replay example handoffs into a dedicated database")
     args = parser.parse_args()
-    if args.demo:
-        import asyncio
-        from demo_handoffs import replay
-        database = PROJECT_ROOT / "data" / "demo-handoffs.db"
-        os.environ["TICKET_DB_PATH"] = str(database)
-        asyncio.run(replay(database))
-
     print(f"==================================================")
     print(f"🚀 EchoBridge AI Operations Hub running at http://{args.host}:{args.port}")
-    print(f"📖 Swagger API Documentation at http://{args.host}:{args.port}/docs")
     print(f"==================================================")
     uvicorn.run("web_server:app", host=args.host, port=args.port, reload=args.reload)
 
